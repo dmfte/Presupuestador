@@ -5,5 +5,10 @@
     <string name="nav_reports">Reportes</string>
     <string name="nav_settings">Configuración</string>
     <string name="add_transaction">Agregar transacción</string>
-    <string name="debug_insert">Debug: Insertar transacción</string>
+    <string name="transaction_saved">Transacción guardada</string>
+    <string name="transaction_updated">Transacción actualizada</string>
+    <string name="transaction_deleted">Transacción eliminada</string>
+    <string name="undo">Deshacer</string>
+    <string name="amount_error">El monto debe ser mayor a 0</string>
+    <string name="category_required_error">La categoría es requerida</string>
 </resources>
