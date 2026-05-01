@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">FinTrack</string>
+    <string name="nav_home">Inicio</string>
+    <string name="nav_transactions">Transacciones</string>
+    <string name="nav_reports">Reportes</string>
+    <string name="nav_settings">Configuración</string>
+    <string name="add_transaction">Agregar transacción</string>
+    <string name="debug_insert">Debug: Insertar transacción</string>
+</resources>
