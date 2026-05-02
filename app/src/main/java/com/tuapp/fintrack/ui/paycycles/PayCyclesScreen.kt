@@ -32,7 +32,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -103,6 +103,7 @@ fun PayCyclesScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var editingCycle by remember { mutableStateOf<PayCycleWithEffectiveDate?>(null) }
     var deleteConfirmId by remember { mutableStateOf<Long?>(null) }
+    var lastDeletedId by remember { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(snackbarMessage) {
         val msg = snackbarMessage
@@ -113,9 +114,10 @@ fun PayCyclesScreen(
                 duration = SnackbarDuration.Short
             )
             if (result == SnackbarResult.ActionPerformed) {
-                // Find the most recently deleted id — use a simple heuristic
-                // The snackbar message is "Pay cycle deleted", so we need the id
-                // We store the last deleted id in the ViewModel
+                lastDeletedId?.let { id ->
+                    viewModel.onUndoDelete(id)
+                    lastDeletedId = null
+                }
             }
             viewModel.clearSnackbar()
         }
@@ -150,6 +152,7 @@ fun PayCyclesScreen(
             text = { Text("Are you sure you want to delete this pay cycle?") },
             confirmButton = {
                 Button(onClick = {
+                    lastDeletedId = id
                     viewModel.onDeletePayCycle(id)
                     deleteConfirmId = null
                 }) { Text("Delete") }
@@ -570,7 +573,7 @@ private fun DayOfWeekDropdown(
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
-                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
         )
         ExposedDropdownMenu(
             expanded = expanded,
