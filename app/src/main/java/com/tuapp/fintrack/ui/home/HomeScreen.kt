@@ -96,7 +96,7 @@ fun HomeScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("FinTrack") })
+            TopAppBar(title = { Text("Presupuestador") })
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(

@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">FinTrack</string>
+    <string name="app_name">Presupuestador</string>
     <string name="nav_home">Home</string>
     <string name="nav_transactions">Transactions</string>
     <string name="nav_reports">Reports</string>
