@@ -13,6 +13,7 @@ import com.tuapp.fintrack.ui.holidays.HolidaysScreen
 import com.tuapp.fintrack.ui.home.HomeScreen
 import com.tuapp.fintrack.ui.list.TransactionListScreen
 import com.tuapp.fintrack.ui.paycycles.PayCyclesScreen
+import com.tuapp.fintrack.ui.report.ReportScreen
 
 @Composable
 fun FinTrackNavHost() {
@@ -29,7 +30,8 @@ fun FinTrackNavHost() {
                 onViewCategories = { navController.navigate(Screen.Categories.route) },
                 onViewBudgets = { navController.navigate(Screen.Budgets.route) },
                 onViewPayCycles = { navController.navigate(Screen.PayCycles.route) },
-                onViewHolidays = { navController.navigate(Screen.Holidays.route) }
+                onViewHolidays = { navController.navigate(Screen.Holidays.route) },
+                onViewReport = { navController.navigate(Screen.Report.route) }
             )
         }
 
@@ -54,6 +56,10 @@ fun FinTrackNavHost() {
 
         composable(Screen.Holidays.route) {
             HolidaysScreen(onNavigateBack = { navController.popBackStack() })
+        }
+
+        composable(Screen.Report.route) {
+            ReportScreen(onNavigateBack = { navController.popBackStack() })
         }
 
         composable(

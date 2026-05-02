@@ -57,6 +57,7 @@ fun HomeScreen(
     onViewBudgets: () -> Unit = {},
     onViewPayCycles: () -> Unit = {},
     onViewHolidays: () -> Unit = {},
+    onViewReport: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
     mainViewModel: MainViewModel = hiltViewModel()
 ) {
@@ -216,7 +217,7 @@ fun HomeScreen(
                 Text("I've Been Paid Today")
             }
 
-            // Navigation row: Categories | Budgets | Pay Cycles | Holidays
+            // Navigation row: Categories | Budgets | Pay Cycles | Holidays | Report
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
@@ -225,6 +226,7 @@ fun HomeScreen(
                 TextButton(onClick = onViewBudgets) { Text("Budgets") }
                 TextButton(onClick = onViewPayCycles) { Text("Pay Cycles") }
                 TextButton(onClick = onViewHolidays) { Text("Holidays") }
+                TextButton(onClick = onViewReport) { Text("Report") }
             }
 
             // Recent transactions header
