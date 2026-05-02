@@ -40,6 +40,8 @@ import java.util.Locale
 fun HomeScreen(
     onAddTransaction: () -> Unit,
     onViewTransactions: () -> Unit,
+    onViewCategories: () -> Unit = {},
+    onViewBudgets: () -> Unit = {},
     viewModel: MainViewModel = hiltViewModel()
 ) {
     val transactions by viewModel.transactions.collectAsState()
@@ -123,6 +125,14 @@ fun HomeScreen(
                         }
                     }
                 }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                TextButton(onClick = onViewCategories) { Text("Categories") }
+                TextButton(onClick = onViewBudgets) { Text("Budgets") }
             }
 
             Row(

@@ -6,6 +6,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.tuapp.fintrack.ui.budgets.BudgetsScreen
+import com.tuapp.fintrack.ui.categories.CategoriesScreen
 import com.tuapp.fintrack.ui.entry.EntryScreen
 import com.tuapp.fintrack.ui.home.HomeScreen
 import com.tuapp.fintrack.ui.list.TransactionListScreen
@@ -21,7 +23,9 @@ fun FinTrackNavHost() {
         composable(Screen.Home.route) {
             HomeScreen(
                 onAddTransaction = { navController.navigate(Screen.Entry.route()) },
-                onViewTransactions = { navController.navigate(Screen.TransactionList.route) }
+                onViewTransactions = { navController.navigate(Screen.TransactionList.route) },
+                onViewCategories = { navController.navigate(Screen.Categories.route) },
+                onViewBudgets = { navController.navigate(Screen.Budgets.route) }
             )
         }
 
@@ -30,6 +34,14 @@ fun FinTrackNavHost() {
                 onNavigateBack = { navController.popBackStack() },
                 onEditTransaction = { id -> navController.navigate(Screen.Entry.route(id)) }
             )
+        }
+
+        composable(Screen.Categories.route) {
+            CategoriesScreen(onNavigateBack = { navController.popBackStack() })
+        }
+
+        composable(Screen.Budgets.route) {
+            BudgetsScreen(onNavigateBack = { navController.popBackStack() })
         }
 
         composable(

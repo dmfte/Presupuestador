@@ -26,4 +26,16 @@ interface BudgetDao {
 
     @Query("UPDATE budgets SET active = 0 WHERE id = :id")
     suspend fun deactivate(id: Long)
+
+    @Query("UPDATE budgets SET active = 1 WHERE id = :id")
+    suspend fun reactivate(id: Long)
+
+    @Query("SELECT * FROM budgets WHERE id = :id")
+    suspend fun getById(id: Long): Budget?
+
+    @Query("SELECT COUNT(*) FROM budgets WHERE categoryId = :categoryId AND cycleId = :cycleId AND active = 1")
+    suspend fun countByCategoryAndCycle(categoryId: Long, cycleId: Long): Int
+
+    @Query("SELECT * FROM budgets WHERE active = 1")
+    suspend fun getAllActiveOnce(): List<Budget>
 }

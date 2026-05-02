@@ -7,4 +7,6 @@ sealed class Screen(val route: String) {
         fun route(transactionId: Long? = null) =
             if (transactionId != null) "entry?transactionId=$transactionId" else "entry"
     }
+    data object Categories : Screen("categories")
+    data object Budgets : Screen("budgets")
 }

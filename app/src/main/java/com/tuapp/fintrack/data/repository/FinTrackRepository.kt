@@ -48,12 +48,19 @@ class FinTrackRepository @Inject constructor(
     suspend fun addCategory(cat: Category): Long = categoryDao.insert(cat)
     suspend fun updateCategory(cat: Category) = categoryDao.update(cat)
     suspend fun archiveCategory(id: Long) = categoryDao.archive(id, System.currentTimeMillis())
+    suspend fun getCategoryById(id: Long): Category? = categoryDao.getById(id)
     fun getCategoriesByApplicability(types: List<CategoryApplicability>): Flow<List<Category>> =
         categoryDao.getByApplicability(types)
 
     suspend fun addBudget(budget: Budget): Long = budgetDao.insert(budget)
     suspend fun updateBudget(budget: Budget) = budgetDao.update(budget)
     suspend fun deactivateBudget(id: Long) = budgetDao.deactivate(id)
+    suspend fun reactivateBudget(id: Long) = budgetDao.reactivate(id)
+    suspend fun getBudgetById(id: Long): Budget? = budgetDao.getById(id)
+    suspend fun hasDuplicateBudget(categoryId: Long, cycleId: Long): Boolean =
+        budgetDao.countByCategoryAndCycle(categoryId, cycleId) > 0
+    suspend fun getAllActiveBudgets(): List<Budget> = budgetDao.getAllActiveOnce()
+    val allBudgets: Flow<List<Budget>> = budgetDao.getAllActive()
 
     suspend fun addPayCycle(cycle: PayCycle): Long = payCycleDao.insert(cycle)
     suspend fun updatePayCycle(cycle: PayCycle) = payCycleDao.update(cycle)
