@@ -22,4 +22,7 @@ interface PayEventDao {
 
     @Query("SELECT COUNT(*) FROM pay_events WHERE occurredAt BETWEEN :startMs AND :endMs")
     suspend fun countInRange(startMs: Long, endMs: Long): Int
+
+    @Query("SELECT COUNT(*) > 0 FROM pay_events WHERE occurredAt BETWEEN :startMs AND :endMs")
+    suspend fun existsForDate(startMs: Long, endMs: Long): Boolean
 }

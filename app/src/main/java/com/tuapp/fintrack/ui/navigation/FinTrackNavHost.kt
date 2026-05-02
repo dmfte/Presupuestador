@@ -9,8 +9,10 @@ import androidx.navigation.navArgument
 import com.tuapp.fintrack.ui.budgets.BudgetsScreen
 import com.tuapp.fintrack.ui.categories.CategoriesScreen
 import com.tuapp.fintrack.ui.entry.EntryScreen
+import com.tuapp.fintrack.ui.holidays.HolidaysScreen
 import com.tuapp.fintrack.ui.home.HomeScreen
 import com.tuapp.fintrack.ui.list.TransactionListScreen
+import com.tuapp.fintrack.ui.paycycles.PayCyclesScreen
 
 @Composable
 fun FinTrackNavHost() {
@@ -25,7 +27,9 @@ fun FinTrackNavHost() {
                 onAddTransaction = { navController.navigate(Screen.Entry.route()) },
                 onViewTransactions = { navController.navigate(Screen.TransactionList.route) },
                 onViewCategories = { navController.navigate(Screen.Categories.route) },
-                onViewBudgets = { navController.navigate(Screen.Budgets.route) }
+                onViewBudgets = { navController.navigate(Screen.Budgets.route) },
+                onViewPayCycles = { navController.navigate(Screen.PayCycles.route) },
+                onViewHolidays = { navController.navigate(Screen.Holidays.route) }
             )
         }
 
@@ -42,6 +46,14 @@ fun FinTrackNavHost() {
 
         composable(Screen.Budgets.route) {
             BudgetsScreen(onNavigateBack = { navController.popBackStack() })
+        }
+
+        composable(Screen.PayCycles.route) {
+            PayCyclesScreen(onNavigateBack = { navController.popBackStack() })
+        }
+
+        composable(Screen.Holidays.route) {
+            HolidaysScreen(onNavigateBack = { navController.popBackStack() })
         }
 
         composable(

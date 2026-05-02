@@ -11,19 +11,30 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,6 +44,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.tuapp.fintrack.data.model.TransactionType
 import com.tuapp.fintrack.ui.MainViewModel
 import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,18 +55,44 @@ fun HomeScreen(
     onViewTransactions: () -> Unit,
     onViewCategories: () -> Unit = {},
     onViewBudgets: () -> Unit = {},
-    viewModel: MainViewModel = hiltViewModel()
+    onViewPayCycles: () -> Unit = {},
+    onViewHolidays: () -> Unit = {},
+    viewModel: HomeViewModel = hiltViewModel(),
+    mainViewModel: MainViewModel = hiltViewModel()
 ) {
-    val transactions by viewModel.transactions.collectAsState()
+    val transactions by mainViewModel.transactions.collectAsState()
+    val periodSummary by viewModel.periodSummary.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
     val currencyFormat = NumberFormat.getCurrencyInstance(Locale.US)
+    val dateFormat = SimpleDateFormat("MMM d", Locale.US)
 
-    val totalIncome = transactions
-        .filter { it.type == TransactionType.INCOME }
-        .sumOf { it.amountCents }
-    val totalExpenses = transactions
-        .filter { it.type == TransactionType.EXPENSE }
-        .sumOf { it.amountCents }
-    val balance = totalIncome - totalExpenses
+    val snackbarHostState = remember { SnackbarHostState() }
+    var showPayConfirmDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(uiState.lastSnackbar) {
+        val msg = uiState.lastSnackbar
+        if (msg != null) {
+            snackbarHostState.showSnackbar(message = msg, duration = SnackbarDuration.Short)
+            viewModel.clearSnackbar()
+        }
+    }
+
+    if (showPayConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showPayConfirmDialog = false },
+            title = { Text("Record Pay Event") },
+            text = { Text("This will start a new pay period from today. Continue?") },
+            confirmButton = {
+                Button(onClick = {
+                    showPayConfirmDialog = false
+                    viewModel.onPaymentRecorded()
+                }) { Text("Confirm") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPayConfirmDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -65,7 +104,8 @@ fun HomeScreen(
                 icon = { Icon(Icons.Default.Add, contentDescription = null) },
                 text = { Text("Add Transaction") }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -74,6 +114,7 @@ fun HomeScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Period summary card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -82,59 +123,111 @@ fun HomeScreen(
                     modifier = Modifier.padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = "Current Period",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = currencyFormat.format(balance / 100.0),
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (balance >= 0) Color(0xFF2E7D32) else Color(0xFFC62828)
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column {
+                    if (periodSummary != null) {
+                        val summary = periodSummary!!
+                        val period = summary.period
+                        val startStr = dateFormat.format(Date(period.startDateMs))
+                        val endStr = dateFormat.format(Date(period.endDateMs))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
-                                text = "Income",
-                                style = MaterialTheme.typography.bodySmall,
+                                text = "$startStr – $endStr",
+                                style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = currencyFormat.format(totalIncome / 100.0),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = Color(0xFF2E7D32),
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text(
-                                text = "Expenses",
+                                text = "${period.daysRemaining} days left",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = currencyFormat.format(totalExpenses / 100.0),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = Color(0xFFC62828),
-                                fontWeight = FontWeight.SemiBold
+                                color = if (period.daysRemaining <= 7)
+                                    MaterialTheme.colorScheme.error
+                                else
+                                    MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                        if (period.daysRemaining <= 7) {
+                            LinearProgressIndicator(
+                                progress = { (7 - period.daysRemaining) / 7f },
+                                modifier = Modifier.fillMaxWidth(),
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        val net = summary.netCents
+                        Text(
+                            text = currencyFormat.format(net / 100.0),
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (net >= 0) Color(0xFF2E7D32) else Color(0xFFC62828)
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Income",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = currencyFormat.format(summary.totalIncomeCents / 100.0),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = Color(0xFF2E7D32),
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "Expenses",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = currencyFormat.format(summary.totalExpensesCents / 100.0),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = Color(0xFFC62828),
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = "Current Period",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "Loading...",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                     }
                 }
             }
 
+            // "I've Been Paid Today" button
+            FilledTonalButton(
+                onClick = { showPayConfirmDialog = true },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !uiState.isPayEventLoading
+            ) {
+                Text("I've Been Paid Today")
+            }
+
+            // Navigation row: Categories | Budgets | Pay Cycles | Holidays
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 TextButton(onClick = onViewCategories) { Text("Categories") }
                 TextButton(onClick = onViewBudgets) { Text("Budgets") }
+                TextButton(onClick = onViewPayCycles) { Text("Pay Cycles") }
+                TextButton(onClick = onViewHolidays) { Text("Holidays") }
             }
 
+            // Recent transactions header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

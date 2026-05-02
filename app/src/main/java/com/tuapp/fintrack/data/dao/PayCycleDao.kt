@@ -23,4 +23,7 @@ interface PayCycleDao {
 
     @Query("UPDATE pay_cycles SET active = 0 WHERE id = :id")
     suspend fun deactivate(id: Long)
+
+    @Query("UPDATE pay_cycles SET active = 1 WHERE id = :id")
+    suspend fun reactivate(id: Long)
 }

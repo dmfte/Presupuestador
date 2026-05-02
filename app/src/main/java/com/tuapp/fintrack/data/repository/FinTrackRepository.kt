@@ -65,10 +65,13 @@ class FinTrackRepository @Inject constructor(
     suspend fun addPayCycle(cycle: PayCycle): Long = payCycleDao.insert(cycle)
     suspend fun updatePayCycle(cycle: PayCycle) = payCycleDao.update(cycle)
     suspend fun deactivatePayCycle(id: Long) = payCycleDao.deactivate(id)
+    suspend fun reactivatePayCycle(id: Long) = payCycleDao.reactivate(id)
 
     suspend fun addPayEvent(event: PayEvent): Long = payEventDao.insert(event)
     suspend fun getPayEventsInRange(startMs: Long, endMs: Long): List<PayEvent> =
         payEventDao.getByDateRange(startMs, endMs)
+    suspend fun existsPayEventForDate(startMs: Long, endMs: Long): Boolean =
+        payEventDao.existsForDate(startMs, endMs)
 
     suspend fun addHoliday(holiday: Holiday): Long = holidayDao.insert(holiday)
     suspend fun updateHoliday(holiday: Holiday) = holidayDao.update(holiday)
