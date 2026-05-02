@@ -31,6 +31,46 @@
             android:exported="false"
             tools:node="remove" />
 
+        <!-- Widget entry activity — opened when user taps the amount button on a widget -->
+        <activity
+            android:name=".widget.WidgetEntryActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Presupuestador"
+            android:windowSoftInputMode="stateAlwaysVisible" />
+
+        <!-- Receives the amount broadcast from WidgetEntryActivity -->
+        <receiver
+            android:name=".widget.WidgetAmountReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.tuapp.fintrack.WIDGET_AMOUNT_ENTERED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Small entry widget -->
+        <receiver
+            android:name=".widget.SmallEntryWidgetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_small_provider" />
+        </receiver>
+
+        <!-- Medium entry widget with period summary -->
+        <receiver
+            android:name=".widget.MediumEntryWidgetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_medium_provider" />
+        </receiver>
+
     </application>
 
 </manifest>

@@ -1,5 +1,6 @@
 package com.tuapp.fintrack.ui.home
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tuapp.fintrack.data.model.TransactionType
@@ -8,7 +9,9 @@ import com.tuapp.fintrack.domain.model.PayPeriod
 import com.tuapp.fintrack.domain.model.PeriodSummary
 import com.tuapp.fintrack.domain.usecase.GetCurrentPeriodUseCase
 import com.tuapp.fintrack.domain.usecase.RecordManualPayEventUseCase
+import com.tuapp.fintrack.widget.refreshWidgetPeriodSummary
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -28,7 +31,8 @@ data class HomeUiState(
 class HomeViewModel @Inject constructor(
     private val repository: FinTrackRepository,
     private val getCurrentPeriod: GetCurrentPeriodUseCase,
-    private val recordManualPayEvent: RecordManualPayEventUseCase
+    private val recordManualPayEvent: RecordManualPayEventUseCase,
+    @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -69,6 +73,7 @@ class HomeViewModel @Inject constructor(
                 "A pay event already exists for today"
             }
             _uiState.update { it.copy(isPayEventLoading = false, lastSnackbar = message) }
+            refreshWidgetPeriodSummary(appContext, repository, getCurrentPeriod)
         }
     }
 

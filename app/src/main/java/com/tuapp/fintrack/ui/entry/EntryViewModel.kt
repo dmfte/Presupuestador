@@ -1,5 +1,6 @@
 package com.tuapp.fintrack.ui.entry
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -9,7 +10,10 @@ import com.tuapp.fintrack.data.model.Transaction
 import com.tuapp.fintrack.data.model.TransactionType
 import com.tuapp.fintrack.data.repository.FinTrackRepository
 import com.tuapp.fintrack.data.settings.SettingsRepository
+import com.tuapp.fintrack.domain.usecase.GetCurrentPeriodUseCase
+import com.tuapp.fintrack.widget.refreshWidgetPeriodSummary
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,6 +26,8 @@ import javax.inject.Inject
 class EntryViewModel @Inject constructor(
     private val repository: FinTrackRepository,
     private val settings: SettingsRepository,
+    private val getCurrentPeriod: GetCurrentPeriodUseCase,
+    @ApplicationContext private val appContext: Context,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -175,6 +181,7 @@ class EntryViewModel @Inject constructor(
                     savedEvent = true
                 )
             }
+            refreshWidgetPeriodSummary(appContext, repository, getCurrentPeriod)
         }
     }
 

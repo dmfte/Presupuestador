@@ -11,4 +11,19 @@
     <string name="undo">Deshacer</string>
     <string name="amount_error">El monto debe ser mayor a 0</string>
     <string name="category_required_error">La categoría es requerida</string>
+    <!-- Widget strings -->
+    <string name="widget_small_description">Widget de entrada rápida de transacciones</string>
+    <string name="widget_medium_description">Widget de entrada con resumen del período</string>
+    <string name="widget_entry_title">Ingresar Monto</string>
+    <string name="widget_amount_hint">0.00</string>
+    <string name="widget_done">Listo</string>
+    <string name="widget_cancel">Cancelar</string>
+    <string name="widget_income">Ingreso</string>
+    <string name="widget_expense">Gasto</string>
+    <string name="widget_save">Guardar</string>
+    <string name="widget_no_category">Sin categoría</string>
+    <string name="widget_period_summary">Resumen del Período</string>
+    <string name="widget_net">Neto</string>
+    <string name="widget_saved">¡Guardado!</string>
+    <string name="widget_error">Error al guardar</string>
 </resources>

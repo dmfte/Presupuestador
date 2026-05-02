@@ -1,11 +1,14 @@
 package com.tuapp.fintrack.ui.entry
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import com.google.common.truth.Truth.assertThat
 import com.tuapp.fintrack.data.model.CategoryApplicability
 import com.tuapp.fintrack.data.model.TransactionType
 import com.tuapp.fintrack.data.repository.FinTrackRepository
 import com.tuapp.fintrack.data.settings.SettingsRepository
+import com.tuapp.fintrack.domain.model.PayPeriod
+import com.tuapp.fintrack.domain.usecase.GetCurrentPeriodUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,13 +31,18 @@ class EntryViewModelTest {
 
     private lateinit var repository: FinTrackRepository
     private lateinit var settings: SettingsRepository
+    private lateinit var getCurrentPeriod: GetCurrentPeriodUseCase
+    private lateinit var appContext: Context
 
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         repository = mock()
         settings = mock()
+        getCurrentPeriod = mock()
+        appContext = mock()
         whenever(repository.allCategories).thenReturn(flowOf(emptyList()))
+        whenever(repository.allTransactions).thenReturn(flowOf(emptyList()))
         whenever(settings.requireCategory).thenReturn(flowOf(false))
     }
 
@@ -47,7 +55,7 @@ class EntryViewModelTest {
         val handle = SavedStateHandle(
             if (transactionId != null) mapOf("transactionId" to transactionId) else emptyMap()
         )
-        return EntryViewModel(repository, settings, handle)
+        return EntryViewModel(repository, settings, getCurrentPeriod, appContext, handle)
     }
 
     @Test
