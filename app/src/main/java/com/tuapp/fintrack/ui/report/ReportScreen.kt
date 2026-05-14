@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -47,7 +48,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
@@ -132,6 +136,39 @@ fun ReportScreen(
             // Summary card
             item {
                 SummaryCard(state = state, currency = currency)
+            }
+
+            // Empty state when no data for the selected month
+            if (state.selectedYear > 0 && state.totalIncomeCents == 0L && state.totalExpenseCents == 0L) {
+                item {
+                    Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(1.dp)) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.BarChart,
+                                contentDescription = null,
+                                modifier = Modifier.size(56.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                            )
+                            Text(
+                                text = "No data for this month",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "Add transactions to see your monthly report.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
             }
 
             // Pie chart
@@ -295,7 +332,13 @@ private fun PieChartSection(slices: List<PieSlice>, currency: NumberFormat) {
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Custom canvas pie chart
-        Canvas(modifier = Modifier.size(140.dp)) {
+        val pieDescription = slices.joinToString(", ") {
+            "${it.label} ${(it.fraction * 100).toInt()}%"
+        }
+        Canvas(modifier = Modifier
+            .size(140.dp)
+            .semantics { contentDescription = "Spending pie chart: $pieDescription" }
+        ) {
             var startAngle = -90f
             slices.forEach { slice ->
                 val sweep = slice.fraction * 360f

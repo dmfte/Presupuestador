@@ -16,5 +16,6 @@ data class EntryUiState(
     val amountError: String? = null,
     val categoryError: String? = null,
     val isSaving: Boolean = false,
-    val savedEvent: Boolean = false
+    val savedEvent: Boolean = false,
+    val saveError: String? = null
 )

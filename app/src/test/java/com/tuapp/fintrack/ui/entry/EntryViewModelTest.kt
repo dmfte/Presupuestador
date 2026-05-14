@@ -162,4 +162,37 @@ class EntryViewModelTest {
 
         assertThat(vm.uiState.value.selectedCategoryId).isEqualTo(99L)
     }
+
+    @Test
+    fun `repository exception on save sets saveError and clears isSaving`() = runTest {
+        whenever(repository.addTransaction(any())).thenThrow(RuntimeException("DB error"))
+
+        val vm = buildViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.onAmountTextChanged("10.00")
+        vm.onSave()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertThat(vm.uiState.value.saveError).isNotNull()
+        assertThat(vm.uiState.value.isSaving).isFalse()
+        assertThat(vm.uiState.value.savedEvent).isFalse()
+    }
+
+    @Test
+    fun `clearSaveError removes error from state`() = runTest {
+        whenever(repository.addTransaction(any())).thenThrow(RuntimeException("DB error"))
+
+        val vm = buildViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.onAmountTextChanged("10.00")
+        vm.onSave()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertThat(vm.uiState.value.saveError).isNotNull()
+
+        vm.clearSaveError()
+        assertThat(vm.uiState.value.saveError).isNull()
+    }
 }

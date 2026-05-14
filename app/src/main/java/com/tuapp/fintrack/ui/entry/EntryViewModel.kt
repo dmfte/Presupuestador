@@ -11,6 +11,7 @@ import com.tuapp.fintrack.data.model.TransactionType
 import com.tuapp.fintrack.data.repository.FinTrackRepository
 import com.tuapp.fintrack.data.settings.SettingsRepository
 import com.tuapp.fintrack.domain.usecase.GetCurrentPeriodUseCase
+import com.tuapp.fintrack.CrashReporter
 import com.tuapp.fintrack.widget.refreshWidgetPeriodSummary
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -119,6 +120,10 @@ class EntryViewModel @Inject constructor(
         _uiState.update { it.copy(savedEvent = false) }
     }
 
+    fun clearSaveError() {
+        _uiState.update { it.copy(saveError = null) }
+    }
+
     fun addCategory(name: String, applicability: CategoryApplicability, colorHex: String) {
         viewModelScope.launch {
             val id = repository.addCategory(
@@ -149,39 +154,44 @@ class EntryViewModel @Inject constructor(
 
         _uiState.update { it.copy(isSaving = true) }
         viewModelScope.launch {
-            val now = System.currentTimeMillis()
-            if (state.transactionId != null) {
-                repository.updateTransaction(
-                    Transaction(
-                        id = state.transactionId,
-                        type = state.type,
-                        amountCents = state.amountCents,
-                        categoryId = state.selectedCategoryId,
-                        description = state.description,
-                        occurredAt = state.occurredAtMs,
-                        createdAt = now
+            try {
+                val now = System.currentTimeMillis()
+                if (state.transactionId != null) {
+                    repository.updateTransaction(
+                        Transaction(
+                            id = state.transactionId,
+                            type = state.type,
+                            amountCents = state.amountCents,
+                            categoryId = state.selectedCategoryId,
+                            description = state.description,
+                            occurredAt = state.occurredAtMs,
+                            createdAt = now
+                        )
                     )
-                )
-            } else {
-                repository.addTransaction(
-                    Transaction(
-                        type = state.type,
-                        amountCents = state.amountCents,
-                        categoryId = state.selectedCategoryId,
-                        description = state.description,
-                        occurredAt = state.occurredAtMs,
-                        createdAt = now
+                } else {
+                    repository.addTransaction(
+                        Transaction(
+                            type = state.type,
+                            amountCents = state.amountCents,
+                            categoryId = state.selectedCategoryId,
+                            description = state.description,
+                            occurredAt = state.occurredAtMs,
+                            createdAt = now
+                        )
                     )
-                )
+                }
+                _uiState.update {
+                    EntryUiState(
+                        requireCategory = state.requireCategory,
+                        availableCategories = state.availableCategories,
+                        savedEvent = true
+                    )
+                }
+                refreshWidgetPeriodSummary(appContext, repository, getCurrentPeriod)
+            } catch (e: Exception) {
+                CrashReporter.log(e, "Failed to save transaction")
+                _uiState.update { it.copy(isSaving = false, saveError = "Failed to save transaction. Please try again.") }
             }
-            _uiState.update {
-                EntryUiState(
-                    requireCategory = state.requireCategory,
-                    availableCategories = state.availableCategories,
-                    savedEvent = true
-                )
-            }
-            refreshWidgetPeriodSummary(appContext, repository, getCurrentPeriod)
         }
     }
 

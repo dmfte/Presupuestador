@@ -74,6 +74,13 @@ fun EntryScreen(
         }
     }
 
+    LaunchedEffect(state.saveError) {
+        state.saveError?.let { error ->
+            snackbarHostState.showSnackbar(error)
+            viewModel.clearSaveError()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
