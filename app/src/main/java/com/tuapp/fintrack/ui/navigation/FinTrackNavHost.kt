@@ -9,11 +9,13 @@ import androidx.navigation.navArgument
 import com.tuapp.fintrack.ui.budgets.BudgetsScreen
 import com.tuapp.fintrack.ui.categories.CategoriesScreen
 import com.tuapp.fintrack.ui.entry.EntryScreen
+import com.tuapp.fintrack.ui.export.ExportDataScreen
 import com.tuapp.fintrack.ui.holidays.HolidaysScreen
 import com.tuapp.fintrack.ui.home.HomeScreen
 import com.tuapp.fintrack.ui.list.TransactionListScreen
 import com.tuapp.fintrack.ui.paycycles.PayCyclesScreen
 import com.tuapp.fintrack.ui.report.ReportScreen
+import com.tuapp.fintrack.ui.settings.SettingsScreen
 
 @Composable
 fun FinTrackNavHost() {
@@ -31,7 +33,8 @@ fun FinTrackNavHost() {
                 onViewBudgets = { navController.navigate(Screen.Budgets.route) },
                 onViewPayCycles = { navController.navigate(Screen.PayCycles.route) },
                 onViewHolidays = { navController.navigate(Screen.Holidays.route) },
-                onViewReport = { navController.navigate(Screen.Report.route) }
+                onViewReport = { navController.navigate(Screen.Report.route) },
+                onViewSettings = { navController.navigate(Screen.Settings.route) }
             )
         }
 
@@ -60,6 +63,17 @@ fun FinTrackNavHost() {
 
         composable(Screen.Report.route) {
             ReportScreen(onNavigateBack = { navController.popBackStack() })
+        }
+
+        composable(Screen.Settings.route) {
+            SettingsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onExportData = { navController.navigate(Screen.ExportData.route) }
+            )
+        }
+
+        composable(Screen.ExportData.route) {
+            ExportDataScreen(onNavigateBack = { navController.popBackStack() })
         }
 
         composable(

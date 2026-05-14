@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -19,6 +20,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -58,6 +60,7 @@ fun HomeScreen(
     onViewPayCycles: () -> Unit = {},
     onViewHolidays: () -> Unit = {},
     onViewReport: () -> Unit = {},
+    onViewSettings: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
     mainViewModel: MainViewModel = hiltViewModel()
 ) {
@@ -97,7 +100,14 @@ fun HomeScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Presupuestador") })
+            TopAppBar(
+                title = { Text("Presupuestador") },
+                actions = {
+                    IconButton(onClick = onViewSettings) {
+                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                    }
+                }
+            )
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
