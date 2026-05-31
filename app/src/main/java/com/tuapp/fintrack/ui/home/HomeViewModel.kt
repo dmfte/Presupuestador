@@ -5,38 +5,29 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tuapp.fintrack.data.model.TransactionType
 import com.tuapp.fintrack.data.repository.FinTrackRepository
-import com.tuapp.fintrack.domain.model.PayPeriod
+import com.tuapp.fintrack.data.settings.SettingsRepository
+import com.tuapp.fintrack.domain.model.MonthPeriod
 import com.tuapp.fintrack.domain.model.PeriodSummary
-import com.tuapp.fintrack.domain.usecase.GetCurrentPeriodUseCase
-import com.tuapp.fintrack.domain.usecase.RecordManualPayEventUseCase
+import com.tuapp.fintrack.domain.usecase.GetCurrentMonthPeriodUseCase
 import com.tuapp.fintrack.widget.refreshWidgetPeriodSummary
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import javax.inject.Inject
-
-data class HomeUiState(
-    val isPayEventLoading: Boolean = false,
-    val lastSnackbar: String? = null
-)
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val repository: FinTrackRepository,
-    private val getCurrentPeriod: GetCurrentPeriodUseCase,
-    private val recordManualPayEvent: RecordManualPayEventUseCase,
+    private val getCurrentPeriod: GetCurrentMonthPeriodUseCase,
+    private val settingsRepository: SettingsRepository,
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(HomeUiState())
-    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    val startingBalanceCents: StateFlow<Long> = settingsRepository.startingBalanceCents
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0L)
 
     val periodSummary: StateFlow<PeriodSummary?> = repository.allTransactions
         .map { transactions ->
@@ -51,33 +42,19 @@ class HomeViewModel @Inject constructor(
             val totalExpenses = periodTransactions
                 .filter { it.type == TransactionType.EXPENSE }
                 .sumOf { it.amountCents }
+            val totalReserved = periodTransactions
+                .filter { it.type == TransactionType.RESERVE }
+                .sumOf { it.amountCents }
             PeriodSummary(
                 period = period,
                 totalIncomeCents = totalIncome,
-                totalExpensesCents = totalExpenses
+                totalExpensesCents = totalExpenses,
+                totalReservedCents = totalReserved
             )
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    val currentPeriod: StateFlow<PayPeriod?> = periodSummary
+    val currentPeriod: StateFlow<MonthPeriod?> = periodSummary
         .map { it?.period }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
-    fun onPaymentRecorded() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isPayEventLoading = true) }
-            val recorded = recordManualPayEvent()
-            val message = if (recorded) {
-                "Pay event recorded — new period started"
-            } else {
-                "A pay event already exists for today"
-            }
-            _uiState.update { it.copy(isPayEventLoading = false, lastSnackbar = message) }
-            refreshWidgetPeriodSummary(appContext, repository, getCurrentPeriod)
-        }
-    }
-
-    fun clearSnackbar() {
-        _uiState.update { it.copy(lastSnackbar = null) }
-    }
 }

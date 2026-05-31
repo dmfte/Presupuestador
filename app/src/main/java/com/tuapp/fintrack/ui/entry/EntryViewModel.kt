@@ -10,7 +10,7 @@ import com.tuapp.fintrack.data.model.Transaction
 import com.tuapp.fintrack.data.model.TransactionType
 import com.tuapp.fintrack.data.repository.FinTrackRepository
 import com.tuapp.fintrack.data.settings.SettingsRepository
-import com.tuapp.fintrack.domain.usecase.GetCurrentPeriodUseCase
+import com.tuapp.fintrack.domain.usecase.GetCurrentMonthPeriodUseCase
 import com.tuapp.fintrack.CrashReporter
 import com.tuapp.fintrack.widget.refreshWidgetPeriodSummary
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,7 +27,7 @@ import javax.inject.Inject
 class EntryViewModel @Inject constructor(
     private val repository: FinTrackRepository,
     private val settings: SettingsRepository,
-    private val getCurrentPeriod: GetCurrentPeriodUseCase,
+    private val getCurrentPeriod: GetCurrentMonthPeriodUseCase,
     @ApplicationContext private val appContext: Context,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -39,6 +39,11 @@ class EntryViewModel @Inject constructor(
         savedStateHandle.get<Long>("transactionId")?.takeIf { it != -1L }
 
     init {
+        val typeArg = savedStateHandle.get<String>("type")
+        when (typeArg) {
+            "INCOME" -> _uiState.update { it.copy(type = TransactionType.INCOME) }
+            "RESERVE" -> _uiState.update { it.copy(type = TransactionType.RESERVE) }
+        }
         observeSettings()
         observeCategories()
         if (editingTransactionId != null) loadTransaction(editingTransactionId)
@@ -199,6 +204,7 @@ class EntryViewModel @Inject constructor(
         when (type) {
             TransactionType.INCOME -> cat.applicability == CategoryApplicability.INCOME || cat.applicability == CategoryApplicability.BOTH
             TransactionType.EXPENSE -> cat.applicability == CategoryApplicability.EXPENSE || cat.applicability == CategoryApplicability.BOTH
+            TransactionType.RESERVE -> cat.applicability == CategoryApplicability.EXPENSE || cat.applicability == CategoryApplicability.BOTH
         }
     }
 

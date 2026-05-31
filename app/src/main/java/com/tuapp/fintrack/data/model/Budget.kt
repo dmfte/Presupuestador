@@ -13,21 +13,14 @@ import androidx.room.PrimaryKey
             parentColumns = ["id"],
             childColumns = ["categoryId"],
             onDelete = ForeignKey.CASCADE
-        ),
-        ForeignKey(
-            entity = PayCycle::class,
-            parentColumns = ["id"],
-            childColumns = ["cycleId"],
-            onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("categoryId"), Index("cycleId")]
+    indices = [Index("categoryId")]
 )
 data class Budget(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val categoryId: Long,
     val amountCents: Long,
-    val cycleId: Long,
     val active: Boolean = true,
     val createdAt: Long
 )

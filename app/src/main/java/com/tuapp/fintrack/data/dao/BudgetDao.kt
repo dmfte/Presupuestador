@@ -21,9 +21,6 @@ interface BudgetDao {
     @Query("SELECT * FROM budgets WHERE categoryId = :categoryId AND active = 1")
     fun getByCategoryId(categoryId: Long): Flow<List<Budget>>
 
-    @Query("SELECT * FROM budgets WHERE cycleId = :cycleId AND active = 1")
-    fun getByCycleId(cycleId: Long): Flow<List<Budget>>
-
     @Query("UPDATE budgets SET active = 0 WHERE id = :id")
     suspend fun deactivate(id: Long)
 
@@ -33,8 +30,8 @@ interface BudgetDao {
     @Query("SELECT * FROM budgets WHERE id = :id")
     suspend fun getById(id: Long): Budget?
 
-    @Query("SELECT COUNT(*) FROM budgets WHERE categoryId = :categoryId AND cycleId = :cycleId AND active = 1")
-    suspend fun countByCategoryAndCycle(categoryId: Long, cycleId: Long): Int
+    @Query("SELECT COUNT(*) FROM budgets WHERE categoryId = :categoryId AND active = 1")
+    suspend fun countByCategory(categoryId: Long): Int
 
     @Query("SELECT * FROM budgets WHERE active = 1")
     suspend fun getAllActiveOnce(): List<Budget>

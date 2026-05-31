@@ -28,4 +28,4 @@ data class Transaction(
     val deletedAt: Long? = null
 )
 
-enum class TransactionType { INCOME, EXPENSE }
+enum class TransactionType { INCOME, EXPENSE, RESERVE }

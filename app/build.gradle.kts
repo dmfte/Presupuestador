@@ -80,8 +80,6 @@ dependencies {
     implementation(libs.hilt.android)
     implementation(libs.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.workmanager.ktx)
-    implementation(libs.hilt.work)
     implementation(libs.datastore.preferences)
     implementation(libs.navigation.compose)
     implementation(libs.hilt.navigation.compose)

@@ -7,8 +7,7 @@ import com.tuapp.fintrack.data.model.CategoryApplicability
 import com.tuapp.fintrack.data.model.TransactionType
 import com.tuapp.fintrack.data.repository.FinTrackRepository
 import com.tuapp.fintrack.data.settings.SettingsRepository
-import com.tuapp.fintrack.domain.model.PayPeriod
-import com.tuapp.fintrack.domain.usecase.GetCurrentPeriodUseCase
+import com.tuapp.fintrack.domain.usecase.GetCurrentMonthPeriodUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,7 +30,7 @@ class EntryViewModelTest {
 
     private lateinit var repository: FinTrackRepository
     private lateinit var settings: SettingsRepository
-    private lateinit var getCurrentPeriod: GetCurrentPeriodUseCase
+    private lateinit var getCurrentPeriod: GetCurrentMonthPeriodUseCase
     private lateinit var appContext: Context
 
     @Before

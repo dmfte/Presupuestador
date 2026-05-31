@@ -1,9 +1,9 @@
 package com.tuapp.fintrack.domain.usecase
 
 import com.tuapp.fintrack.data.dao.CategoryDao
-import com.tuapp.fintrack.data.dao.PayEventDao
 import com.tuapp.fintrack.data.dao.TransactionDao
 import com.tuapp.fintrack.data.model.TransactionType
+import com.tuapp.fintrack.data.settings.SettingsRepository
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -14,43 +14,47 @@ data class ExportTransaction(
     val categoryName: String?,
     val description: String,
     val occurredAt: Long,
-    val isPayEvent: Boolean
+    val isStartingBalance: Boolean = false
 )
 
 @Singleton
 class ExportTransactionsUseCase @Inject constructor(
     private val transactionDao: TransactionDao,
-    private val payEventDao: PayEventDao,
-    private val categoryDao: CategoryDao
+    private val categoryDao: CategoryDao,
+    private val settingsRepository: SettingsRepository
 ) {
     suspend operator fun invoke(): List<ExportTransaction> {
-        val realTransactions = transactionDao.getAllActive().first()
-        val payEvents = payEventDao.getAllActive().first()
+        val transactions = transactionDao.getAllActive().first()
         val categories = categoryDao.getAllActive().first()
         val catMap = categories.associateBy { it.id }
 
-        val syntheticTransactions = payEvents.map { event ->
-            ExportTransaction(
-                type = TransactionType.INCOME,
-                amountCents = 0L,
-                categoryName = null,
-                description = "Pay event",
-                occurredAt = event.occurredAt,
-                isPayEvent = true
-            )
-        }
-
-        val denormReal = realTransactions.map { tx ->
+        val real = transactions.map { tx ->
             ExportTransaction(
                 type = tx.type,
                 amountCents = tx.amountCents,
                 categoryName = tx.categoryId?.let { catMap[it]?.name },
                 description = tx.description,
-                occurredAt = tx.occurredAt,
-                isPayEvent = false
+                occurredAt = tx.occurredAt
             )
         }
 
-        return (denormReal + syntheticTransactions).sortedBy { it.occurredAt }
+        val startingBalance = buildStartingBalanceRow()
+        val combined = if (startingBalance != null) listOf(startingBalance) + real else real
+        return combined.sortedBy { it.occurredAt }
+    }
+
+    private suspend fun buildStartingBalanceRow(): ExportTransaction? {
+        val cents = settingsRepository.startingBalanceCents.first()
+        if (cents == 0L) return null
+        val setAt = settingsRepository.startingBalanceSetAt.first().takeIf { it > 0L }
+            ?: System.currentTimeMillis()
+        return ExportTransaction(
+            type = if (cents >= 0) TransactionType.INCOME else TransactionType.EXPENSE,
+            amountCents = kotlin.math.abs(cents),
+            categoryName = "Opening balance",
+            description = "Starting balance",
+            occurredAt = setAt,
+            isStartingBalance = true
+        )
     }
 }

@@ -13,17 +13,37 @@
     <string name="category_required_error">La categoría es requerida</string>
     <!-- Widget strings -->
     <string name="widget_small_description">Widget de entrada rápida de transacciones</string>
-    <string name="widget_medium_description">Widget de entrada con resumen del período</string>
-    <string name="widget_entry_title">Ingresar Monto</string>
-    <string name="widget_amount_hint">0.00</string>
-    <string name="widget_done">Listo</string>
-    <string name="widget_cancel">Cancelar</string>
-    <string name="widget_income">Ingreso</string>
-    <string name="widget_expense">Gasto</string>
-    <string name="widget_save">Guardar</string>
-    <string name="widget_no_category">Sin categoría</string>
-    <string name="widget_period_summary">Resumen del Período</string>
-    <string name="widget_net">Neto</string>
-    <string name="widget_saved">¡Guardado!</string>
-    <string name="widget_error">Error al guardar</string>
+    <!-- SMS auto-transaction strings -->
+    <string name="sms_section_title">Auto-transacción por SMS</string>
+    <string name="sms_enabled_title">Activar auto-transacción por SMS</string>
+    <string name="sms_enabled_subtitle">Registrar transacciones automáticamente desde notificaciones SMS</string>
+    <string name="sms_identifier_title">Texto identificador</string>
+    <string name="sms_identifier_subtitle">Texto que debe aparecer en el SMS (ej. nombre del banco)</string>
+    <string name="sms_amount_prefix_title">Prefijo del monto</string>
+    <string name="sms_amount_prefix_subtitle">Texto antes del monto (ej. "$" o "USD ")</string>
+    <string name="sms_type_title">Tipo de transacción</string>
+    <string name="sms_type_expense">Gasto</string>
+    <string name="sms_type_income">Ingreso</string>
+    <string name="sms_type_reserve">Reservar</string>
+    <string name="transaction_type_reserve">Reservar</string>
+    <string name="sms_category_title">Categoría predeterminada</string>
+    <string name="sms_category_none">Ninguna</string>
+    <string name="sms_description_title">Descripción</string>
+    <string name="sms_description_subtitle">Descripción para transacciones automáticas</string>
+    <string name="sms_notification_access_required">Acceso a notificaciones requerido</string>
+    <string name="sms_notification_access_message">Para leer notificaciones SMS, habilita el acceso a notificaciones para esta app en los ajustes del sistema.</string>
+    <string name="sms_open_settings">Abrir ajustes</string>
+    <string name="sms_transaction_recorded">Auto-registrado %1$s: %2$s</string>
+    <!-- Starting balance -->
+    <string name="starting_balance_title">Saldo inicial</string>
+    <string name="starting_balance_welcome_title">Bienvenido a Presupuestador</string>
+    <string name="starting_balance_welcome_message">Establece tu saldo inicial — el efectivo que ya tienes antes de empezar a registrar. Puedes omitirlo y configurarlo luego en Configuración.</string>
+    <string name="starting_balance_edit_title">Editar saldo inicial</string>
+    <string name="starting_balance_edit_message">Actualiza el efectivo que tenías antes de empezar a registrar. Usa un valor negativo si empezaste con deuda.</string>
+    <string name="starting_balance_input_label">Monto (USD)</string>
+    <string name="starting_balance_input_error">Ingresa un monto válido (ej. 1234.56 o -50)</string>
+    <string name="starting_balance_save">Guardar</string>
+    <string name="starting_balance_skip">Omitir</string>
+    <string name="starting_balance_cancel">Cancelar</string>
+    <string name="starting_balance_set_on">establecido %1$s</string>
 </resources>

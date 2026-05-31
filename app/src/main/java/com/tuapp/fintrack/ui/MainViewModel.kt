@@ -5,11 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.tuapp.fintrack.data.model.Transaction
 import com.tuapp.fintrack.data.model.TransactionType
 import com.tuapp.fintrack.data.repository.FinTrackRepository
-import com.tuapp.fintrack.domain.model.PayPeriod
-import com.tuapp.fintrack.domain.usecase.GetCurrentPeriodUseCase
+import com.tuapp.fintrack.data.settings.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -17,11 +17,24 @@ import javax.inject.Inject
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val repository: FinTrackRepository,
-    private val getCurrentPeriod: GetCurrentPeriodUseCase
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     val transactions: StateFlow<List<Transaction>> = repository.allTransactions
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val showStartingBalancePrompt: StateFlow<Boolean> =
+        settingsRepository.hasSeenStartingBalancePrompt
+            .map { !it }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setStartingBalance(cents: Long) {
+        viewModelScope.launch { settingsRepository.setStartingBalance(cents) }
+    }
+
+    fun skipStartingBalancePrompt() {
+        viewModelScope.launch { settingsRepository.setStartingBalance(0L) }
+    }
 
     fun insertDebugTransaction() {
         viewModelScope.launch {
@@ -34,12 +47,6 @@ class MainViewModel @Inject constructor(
                     createdAt = System.currentTimeMillis()
                 )
             )
-        }
-    }
-
-    fun loadCurrentPeriod(onResult: (PayPeriod) -> Unit) {
-        viewModelScope.launch {
-            onResult(getCurrentPeriod())
         }
     }
 }

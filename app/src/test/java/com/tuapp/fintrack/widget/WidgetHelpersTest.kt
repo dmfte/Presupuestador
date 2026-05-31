@@ -34,10 +34,8 @@ class WidgetHelpersTest {
     }
 
     @Test
-    fun `WidgetEntryState defaults to EXPENSE type`() {
-        val state = WidgetEntryState()
-        assertThat(state.selectedType).isEqualTo("EXPENSE")
-        assertThat(state.selectedCategoryId).isEqualTo(-1L)
-        assertThat(state.amountCents).isEqualTo(0L)
+    fun `formatDateShort formats epoch`() {
+        val formatted = formatDateShort(0L)
+        assertThat(formatted).isNotEmpty()
     }
 }

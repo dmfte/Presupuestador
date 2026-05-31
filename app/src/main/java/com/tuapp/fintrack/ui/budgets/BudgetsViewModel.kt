@@ -4,11 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tuapp.fintrack.data.model.Budget
 import com.tuapp.fintrack.data.model.Category
-import com.tuapp.fintrack.data.model.PayCycle
 import com.tuapp.fintrack.data.model.TransactionType
 import com.tuapp.fintrack.data.repository.FinTrackRepository
 import com.tuapp.fintrack.domain.model.BudgetWithProgress
-import com.tuapp.fintrack.domain.usecase.GetCurrentPeriodUseCase
+import com.tuapp.fintrack.domain.usecase.GetCurrentMonthPeriodUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -28,19 +27,17 @@ data class BudgetsUiState(
 @HiltViewModel
 class BudgetsViewModel @Inject constructor(
     private val repository: FinTrackRepository,
-    private val getCurrentPeriod: GetCurrentPeriodUseCase
+    private val getCurrentPeriod: GetCurrentMonthPeriodUseCase
 ) : ViewModel() {
 
     val budgets: StateFlow<List<BudgetWithProgress>> =
         combine(
             repository.allBudgets,
             repository.allCategories,
-            repository.allPayCycles,
             repository.allTransactions
-        ) { budgets, categories, cycles, transactions ->
+        ) { budgets, categories, transactions ->
             val period = getCurrentPeriod()
             val categoryMap = categories.associateBy { it.id }
-            val cycleMap = cycles.associateBy { it.id }
 
             val periodTransactions = transactions.filter {
                 it.deletedAt == null &&
@@ -50,7 +47,6 @@ class BudgetsViewModel @Inject constructor(
 
             budgets.mapNotNull { budget ->
                 val category = categoryMap[budget.categoryId] ?: return@mapNotNull null
-                val cycle = cycleMap[budget.cycleId] ?: return@mapNotNull null
                 val spent = periodTransactions
                     .filter { it.categoryId == budget.categoryId }
                     .sumOf { it.amountCents }
@@ -60,7 +56,6 @@ class BudgetsViewModel @Inject constructor(
                 BudgetWithProgress(
                     budget = budget,
                     category = category,
-                    cycle = cycle,
                     currentPeriodSpendingCents = spent,
                     progressPercent = progress
                 )
@@ -70,22 +65,18 @@ class BudgetsViewModel @Inject constructor(
     val categories: StateFlow<List<Category>> = repository.allCategories
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    val payCycles: StateFlow<List<PayCycle>> = repository.allPayCycles
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-
     private val _uiState = MutableStateFlow(BudgetsUiState())
     val uiState: StateFlow<BudgetsUiState> = _uiState.asStateFlow()
 
-    fun onAddBudget(categoryId: Long, cycleId: Long, amountCents: Long) {
+    fun onAddBudget(categoryId: Long, amountCents: Long) {
         viewModelScope.launch {
-            if (repository.hasDuplicateBudget(categoryId, cycleId)) {
-                _uiState.update { it.copy(snackbarMessage = "Budget already exists for this category and cycle") }
+            if (repository.hasDuplicateBudget(categoryId)) {
+                _uiState.update { it.copy(snackbarMessage = "Budget already exists for this category") }
                 return@launch
             }
-            val id = repository.addBudget(
+            repository.addBudget(
                 Budget(
                     categoryId = categoryId,
-                    cycleId = cycleId,
                     amountCents = amountCents,
                     createdAt = System.currentTimeMillis()
                 )

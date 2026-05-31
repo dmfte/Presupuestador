@@ -58,11 +58,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.tuapp.fintrack.data.model.Category
-import com.tuapp.fintrack.data.model.CategoryApplicability
-import com.tuapp.fintrack.data.model.PayCycle
 import com.tuapp.fintrack.domain.model.BudgetWithProgress
-import com.tuapp.fintrack.domain.model.PayCycleRule
-import com.tuapp.fintrack.domain.model.toPayCycleRule
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -74,7 +70,6 @@ fun BudgetsScreen(
 ) {
     val budgets by viewModel.budgets.collectAsState()
     val categories by viewModel.categories.collectAsState()
-    val cycles by viewModel.payCycles.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -139,7 +134,7 @@ fun BudgetsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "Create a budget to track spending limits for each category.",
+                        text = "Create a budget to track monthly spending limits for each category.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
@@ -173,9 +168,8 @@ fun BudgetsScreen(
     if (showAddDialog) {
         AddBudgetDialog(
             categories = categories.filter { it.archivedAt == null },
-            cycles = cycles,
-            onConfirm = { catId, cycleId, cents ->
-                viewModel.onAddBudget(catId, cycleId, cents)
+            onConfirm = { catId, cents ->
+                viewModel.onAddBudget(catId, cents)
                 showAddDialog = false
             },
             onDismiss = { showAddDialog = false }
@@ -256,7 +250,7 @@ private fun BudgetItem(
         }
         Spacer(Modifier.height(2.dp))
         Text(
-            text = cycleLabel(bwp.cycle),
+            text = "Monthly",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -276,34 +270,17 @@ private fun BudgetItem(
     }
 }
 
-private fun cycleLabel(cycle: PayCycle): String {
-    return try {
-        when (val rule = cycle.rule.toPayCycleRule()) {
-            is PayCycleRule.DayOfMonthRule -> "${rule.day}th of month"
-            is PayCycleRule.LastDayOfMonthRule -> "Last day of month"
-            is PayCycleRule.SpecificDateRule -> "Specific date"
-            is PayCycleRule.WeeklyRule -> "Weekly"
-            is PayCycleRule.BiweeklyRule -> "Biweekly"
-        }
-    } catch (e: Exception) {
-        cycle.rule
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddBudgetDialog(
     categories: List<Category>,
-    cycles: List<PayCycle>,
-    onConfirm: (categoryId: Long, cycleId: Long, amountCents: Long) -> Unit,
+    onConfirm: (categoryId: Long, amountCents: Long) -> Unit,
     onDismiss: () -> Unit
 ) {
     var selectedCategory by remember { mutableStateOf<Category?>(null) }
-    var selectedCycle by remember { mutableStateOf<PayCycle?>(null) }
     var amountText by remember { mutableStateOf("") }
     var amountError by remember { mutableStateOf<String?>(null) }
     var catExpanded by remember { mutableStateOf(false) }
-    var cycleExpanded by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -344,44 +321,10 @@ private fun AddBudgetDialog(
                     }
                 }
 
-                ExposedDropdownMenuBox(
-                    expanded = cycleExpanded,
-                    onExpandedChange = { cycleExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = selectedCycle?.let { cycleLabel(it) } ?: "",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Pay Cycle") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(cycleExpanded) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                    )
-                    ExposedDropdownMenu(
-                        expanded = cycleExpanded,
-                        onDismissRequest = { cycleExpanded = false }
-                    ) {
-                        if (cycles.isEmpty()) {
-                            DropdownMenuItem(
-                                text = { Text("No cycles available", color = MaterialTheme.colorScheme.onSurfaceVariant) },
-                                onClick = {}
-                            )
-                        } else {
-                            cycles.forEach { cycle ->
-                                DropdownMenuItem(
-                                    text = { Text(cycleLabel(cycle)) },
-                                    onClick = { selectedCycle = cycle; cycleExpanded = false }
-                                )
-                            }
-                        }
-                    }
-                }
-
                 OutlinedTextField(
                     value = amountText,
                     onValueChange = { amountText = it; amountError = null },
-                    label = { Text("Budget Amount (USD)") },
+                    label = { Text("Monthly Budget (USD)") },
                     placeholder = { Text("0.00") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     isError = amountError != null,
@@ -396,8 +339,7 @@ private fun AddBudgetDialog(
                 val cents = parseCents(amountText)
                 if (cents <= 0L) { amountError = "Enter a valid amount"; return@TextButton }
                 if (selectedCategory == null) return@TextButton
-                if (selectedCycle == null) return@TextButton
-                onConfirm(selectedCategory!!.id, selectedCycle!!.id, cents)
+                onConfirm(selectedCategory!!.id, cents)
             }) { Text("Add") }
         },
         dismissButton = {
@@ -425,14 +367,14 @@ private fun EditBudgetDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "${current.category.name} · ${cycleLabel(current.cycle)}",
+                    text = "${current.category.name} · Monthly",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 OutlinedTextField(
                     value = amountText,
                     onValueChange = { amountText = it; amountError = null },
-                    label = { Text("Budget Amount (USD)") },
+                    label = { Text("Monthly Budget (USD)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     isError = amountError != null,
                     supportingText = amountError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },

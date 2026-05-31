@@ -139,7 +139,7 @@ fun ReportScreen(
             }
 
             // Empty state when no data for the selected month
-            if (state.selectedYear > 0 && state.totalIncomeCents == 0L && state.totalExpenseCents == 0L) {
+            if (state.selectedYear > 0 && state.totalIncomeCents == 0L && state.totalExpenseCents == 0L && state.totalReservedCents == 0L) {
                 item {
                     Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(1.dp)) {
                         Column(
@@ -308,6 +308,15 @@ private fun SummaryCard(state: ReportUiState, currency: NumberFormat) {
                     style = MaterialTheme.typography.bodyLarge,
                     color = Color(0xFFC62828),
                     fontWeight = FontWeight.Bold
+                )
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Reserved", style = MaterialTheme.typography.labelSmall)
+                Text(
+                    currency.format(state.totalReservedCents / 100.0),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFFF9A825),
+                    fontWeight = FontWeight.Medium
                 )
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {

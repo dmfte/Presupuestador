@@ -61,6 +61,7 @@ class ReportViewModel @Inject constructor(
 
             val income = monthTxs.filter { it.type == TransactionType.INCOME }.sumOf { it.amountCents }
             val expense = monthTxs.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amountCents }
+            val reserved = monthTxs.filter { it.type == TransactionType.RESERVE }.sumOf { it.amountCents }
 
             // Pie chart: spending by category
             val expenseTxs = monthTxs.filter { it.type == TransactionType.EXPENSE }
@@ -123,6 +124,7 @@ class ReportViewModel @Inject constructor(
                 selectedMonth = month,
                 totalIncomeCents = income,
                 totalExpenseCents = expense,
+                totalReservedCents = reserved,
                 pieSlices = pieSlices,
                 dailyExpenses = dailyExpenses,
                 monthlyTrend = trend,
@@ -186,11 +188,14 @@ class ReportViewModel @Inject constructor(
         c1.drawLine(40f, y, pageWidth - 40f, y, linePaint); y += 20f
 
         // Summary metrics
+        val yellowPaint = Paint().apply { textSize = 11f; color = AndroidColor.rgb(249, 168, 37) }
         c1.drawText("Summary", 40f, y, headPaint); y += 20f
         c1.drawText("Total Income:", 40f, y, bodyPaint)
         c1.drawText(currency.format(state.totalIncomeCents / 100.0), 200f, y, greenPaint); y += 16f
         c1.drawText("Total Expenses:", 40f, y, bodyPaint)
         c1.drawText(currency.format(state.totalExpenseCents / 100.0), 200f, y, redPaint); y += 16f
+        c1.drawText("Total Reserved:", 40f, y, bodyPaint)
+        c1.drawText(currency.format(state.totalReservedCents / 100.0), 200f, y, yellowPaint); y += 16f
         val netPaint = if (state.netCents >= 0) greenPaint else redPaint
         c1.drawText("Net:", 40f, y, bodyPaint)
         c1.drawText(currency.format(state.netCents / 100.0), 200f, y, netPaint); y += 26f

@@ -177,6 +177,11 @@ private fun FilterBar(
                 onClick = { onTypeFilter(TransactionType.EXPENSE) },
                 label = { Text("Expense") }
             )
+            FilterChip(
+                selected = state.typeFilter == TransactionType.RESERVE,
+                onClick = { onTypeFilter(TransactionType.RESERVE) },
+                label = { Text("Reserve") }
+            )
         }
 
         Row(
@@ -247,8 +252,11 @@ private fun TransactionItem(
     val amountText = currencyFormat.format(transaction.amountCents / 100.0)
     val dateText = dateFormat.format(Date(transaction.occurredAt))
 
-    val typeColor = if (transaction.type == TransactionType.INCOME)
-        Color(0xFF2E7D32) else Color(0xFFC62828)
+    val typeColor = when (transaction.type) {
+        TransactionType.INCOME -> Color(0xFF2E7D32)
+        TransactionType.EXPENSE -> Color(0xFFC62828)
+        TransactionType.RESERVE -> Color(0xFFF9A825)
+    }
 
     Card(
         modifier = Modifier
@@ -270,7 +278,11 @@ private fun TransactionItem(
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
                 Text(
-                    text = if (transaction.type == TransactionType.INCOME) "+" else "-",
+                    text = when (transaction.type) {
+                        TransactionType.INCOME -> "+"
+                        TransactionType.EXPENSE -> "-"
+                        TransactionType.RESERVE -> "~"
+                    },
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.labelMedium

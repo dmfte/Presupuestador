@@ -18,7 +18,7 @@ internal fun buildCsvContent(transactions: List<ExportTransaction>): String {
         timeZone = TimeZone.getDefault()
     }
     val sb = StringBuilder()
-    sb.append("date,year,type,amount_usd,category,description,is_pay_event\n")
+    sb.append("date,year,type,amount_usd,category,description,is_starting_balance\n")
     for (tx in transactions) {
         val date = dateFmt.format(Date(tx.occurredAt))
         val year = Calendar.getInstance(TimeZone.getDefault()).apply {
@@ -27,7 +27,7 @@ internal fun buildCsvContent(transactions: List<ExportTransaction>): String {
         val amountUsd = "%.2f".format(tx.amountCents / 100.0)
         val category = escapeCsvField(tx.categoryName ?: "")
         val description = escapeCsvField(tx.description)
-        sb.append("$date,$year,${tx.type},$amountUsd,$category,$description,${tx.isPayEvent}\n")
+        sb.append("$date,$year,${tx.type},$amountUsd,$category,$description,${tx.isStartingBalance}\n")
     }
     return sb.toString()
 }
@@ -57,6 +57,7 @@ internal fun buildJsonContent(transactions: List<ExportTransaction>): String {
     for ((year, txs) in byYear.toSortedMap(reverseOrder())) {
         val income = txs.filter { it.type == TransactionType.INCOME }.sumOf { it.amountCents }
         val expense = txs.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amountCents }
+        val reserved = txs.filter { it.type == TransactionType.RESERVE }.sumOf { it.amountCents }
 
         val txJson = txs.map { tx ->
             JsonObject(
@@ -66,7 +67,7 @@ internal fun buildJsonContent(transactions: List<ExportTransaction>): String {
                     "amount_cents" to JsonPrimitive(tx.amountCents),
                     "category" to (tx.categoryName?.let { JsonPrimitive(it) } ?: JsonNull),
                     "description" to JsonPrimitive(tx.description),
-                    "is_pay_event" to JsonPrimitive(tx.isPayEvent)
+                    "is_starting_balance" to JsonPrimitive(tx.isStartingBalance)
                 )
             )
         }
@@ -76,6 +77,7 @@ internal fun buildJsonContent(transactions: List<ExportTransaction>): String {
                 "transactionCount" to JsonPrimitive(txs.size),
                 "incomeTotalCents" to JsonPrimitive(income),
                 "expenseTotalCents" to JsonPrimitive(expense),
+                "reservedTotalCents" to JsonPrimitive(reserved),
                 "transactions" to JsonArray(txJson)
             )
         )

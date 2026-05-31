@@ -46,6 +46,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -162,14 +163,37 @@ private fun TypeToggle(
     selected: TransactionType,
     onSelect: (TransactionType) -> Unit
 ) {
-    val options = listOf(TransactionType.EXPENSE, TransactionType.INCOME)
+    val options = listOf(TransactionType.EXPENSE, TransactionType.RESERVE, TransactionType.INCOME)
+    val labels = mapOf(
+        TransactionType.EXPENSE to "Expense",
+        TransactionType.RESERVE to "Reserve",
+        TransactionType.INCOME to "Income"
+    )
     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
         options.forEachIndexed { idx, type ->
             SegmentedButton(
                 selected = selected == type,
                 onClick = { onSelect(type) },
                 shape = SegmentedButtonDefaults.itemShape(index = idx, count = options.size),
-                label = { Text(type.name.lowercase().replaceFirstChar { it.uppercase() }) }
+                colors = if (selected == type) {
+                    when (type) {
+                        TransactionType.EXPENSE -> SegmentedButtonDefaults.colors(
+                            activeContainerColor = Color(0xFFC62828),
+                            activeContentColor = Color.White
+                        )
+                        TransactionType.RESERVE -> SegmentedButtonDefaults.colors(
+                            activeContainerColor = Color(0xFFF9A825),
+                            activeContentColor = Color.White
+                        )
+                        TransactionType.INCOME -> SegmentedButtonDefaults.colors(
+                            activeContainerColor = Color(0xFF2E7D32),
+                            activeContentColor = Color.White
+                        )
+                    }
+                } else {
+                    SegmentedButtonDefaults.colors()
+                },
+                label = { Text(labels[type] ?: type.name) }
             )
         }
     }
@@ -288,6 +312,7 @@ private fun AddCategoryDialog(
     val defaultApplicability = when (transactionType) {
         TransactionType.EXPENSE -> CategoryApplicability.EXPENSE
         TransactionType.INCOME -> CategoryApplicability.INCOME
+        TransactionType.RESERVE -> CategoryApplicability.EXPENSE
     }
 
     AlertDialog(

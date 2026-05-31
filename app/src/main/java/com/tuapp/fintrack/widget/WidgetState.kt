@@ -5,7 +5,6 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
-import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -17,22 +16,15 @@ object WidgetStateKeys {
     val PERIOD_END_MS = longPreferencesKey("period_end_ms")
     val INCOME_CENTS = longPreferencesKey("income_cents")
     val EXPENSE_CENTS = longPreferencesKey("expense_cents")
-    val SELECTED_TYPE = stringPreferencesKey("selected_type")
-    val SELECTED_CATEGORY_ID = longPreferencesKey("selected_category_id")
-    val AMOUNT_CENTS = longPreferencesKey("amount_cents")
+    val RESERVED_CENTS = longPreferencesKey("reserved_cents")
 }
 
 data class WidgetPeriodSummary(
     val periodStartMs: Long = 0L,
     val periodEndMs: Long = 0L,
     val incomeCents: Long = 0L,
-    val expenseCents: Long = 0L
-)
-
-data class WidgetEntryState(
-    val selectedType: String = "EXPENSE",
-    val selectedCategoryId: Long = -1L,
-    val amountCents: Long = 0L
+    val expenseCents: Long = 0L,
+    val reservedCents: Long = 0L
 )
 
 suspend fun Context.readWidgetPeriodSummary(): WidgetPeriodSummary =
@@ -41,7 +33,8 @@ suspend fun Context.readWidgetPeriodSummary(): WidgetPeriodSummary =
             periodStartMs = prefs[WidgetStateKeys.PERIOD_START_MS] ?: 0L,
             periodEndMs = prefs[WidgetStateKeys.PERIOD_END_MS] ?: 0L,
             incomeCents = prefs[WidgetStateKeys.INCOME_CENTS] ?: 0L,
-            expenseCents = prefs[WidgetStateKeys.EXPENSE_CENTS] ?: 0L
+            expenseCents = prefs[WidgetStateKeys.EXPENSE_CENTS] ?: 0L,
+            reservedCents = prefs[WidgetStateKeys.RESERVED_CENTS] ?: 0L
         )
     }.first()
 
@@ -51,30 +44,6 @@ suspend fun Context.writeWidgetPeriodSummary(summary: WidgetPeriodSummary) {
         prefs[WidgetStateKeys.PERIOD_END_MS] = summary.periodEndMs
         prefs[WidgetStateKeys.INCOME_CENTS] = summary.incomeCents
         prefs[WidgetStateKeys.EXPENSE_CENTS] = summary.expenseCents
-    }
-}
-
-suspend fun Context.readWidgetEntryState(): WidgetEntryState =
-    widgetDataStore.data.map { prefs ->
-        WidgetEntryState(
-            selectedType = prefs[WidgetStateKeys.SELECTED_TYPE] ?: "EXPENSE",
-            selectedCategoryId = prefs[WidgetStateKeys.SELECTED_CATEGORY_ID] ?: -1L,
-            amountCents = prefs[WidgetStateKeys.AMOUNT_CENTS] ?: 0L
-        )
-    }.first()
-
-suspend fun Context.writeWidgetEntryState(state: WidgetEntryState) {
-    widgetDataStore.edit { prefs ->
-        prefs[WidgetStateKeys.SELECTED_TYPE] = state.selectedType
-        prefs[WidgetStateKeys.SELECTED_CATEGORY_ID] = state.selectedCategoryId
-        prefs[WidgetStateKeys.AMOUNT_CENTS] = state.amountCents
-    }
-}
-
-suspend fun Context.resetWidgetEntryState() {
-    widgetDataStore.edit { prefs ->
-        prefs[WidgetStateKeys.SELECTED_TYPE] = "EXPENSE"
-        prefs.remove(WidgetStateKeys.SELECTED_CATEGORY_ID)
-        prefs[WidgetStateKeys.AMOUNT_CENTS] = 0L
+        prefs[WidgetStateKeys.RESERVED_CENTS] = summary.reservedCents
     }
 }

@@ -37,6 +37,7 @@ data class ReportUiState(
     val selectedMonth: Int = 0,
     val totalIncomeCents: Long = 0L,
     val totalExpenseCents: Long = 0L,
+    val totalReservedCents: Long = 0L,
     val pieSlices: List<PieSlice> = emptyList(),
     val dailyExpenses: List<Float> = emptyList(),
     val monthlyTrend: List<MonthSummary> = emptyList(),
@@ -46,5 +47,5 @@ data class ReportUiState(
     val isExporting: Boolean = false,
     val exportError: String? = null
 ) {
-    val netCents: Long get() = totalIncomeCents - totalExpenseCents
+    val netCents: Long get() = totalIncomeCents - totalExpenseCents - totalReservedCents
 }

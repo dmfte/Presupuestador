@@ -35,30 +35,7 @@
                 android:resource="@xml/file_provider_paths" />
         </provider>
 
-        <!-- Disable default WorkManager initialization so we can use HiltWorkerFactory -->
-        <provider
-            android:name="androidx.startup.InitializationProvider"
-            android:authorities="${applicationId}.androidx-startup"
-            android:exported="false"
-            tools:node="remove" />
-
-        <!-- Widget entry activity — opened when user taps the amount button on a widget -->
-        <activity
-            android:name=".widget.WidgetEntryActivity"
-            android:exported="false"
-            android:theme="@style/Theme.Presupuestador"
-            android:windowSoftInputMode="stateAlwaysVisible" />
-
-        <!-- Receives the amount broadcast from WidgetEntryActivity -->
-        <receiver
-            android:name=".widget.WidgetAmountReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.tuapp.fintrack.WIDGET_AMOUNT_ENTERED" />
-            </intent-filter>
-        </receiver>
-
-        <!-- Small entry widget -->
+        <!-- Quick entry widget -->
         <receiver
             android:name=".widget.SmallEntryWidgetReceiver"
             android:exported="true">
@@ -70,17 +47,15 @@
                 android:resource="@xml/widget_small_provider" />
         </receiver>
 
-        <!-- Medium entry widget with period summary -->
-        <receiver
-            android:name=".widget.MediumEntryWidgetReceiver"
-            android:exported="true">
+        <!-- SMS notification listener for auto-transactions -->
+        <service
+            android:name=".sms.SmsNotificationListenerService"
+            android:exported="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_medium_provider" />
-        </receiver>
+        </service>
 
     </application>
 

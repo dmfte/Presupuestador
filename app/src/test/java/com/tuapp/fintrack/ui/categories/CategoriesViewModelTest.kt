@@ -118,7 +118,7 @@ class CategoriesViewModelTest {
         val vm = buildViewModel()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        val budget = Budget(id = 1L, categoryId = 3L, amountCents = 5000L, cycleId = 1L, createdAt = 0L)
+        val budget = Budget(id = 1L, categoryId = 3L, amountCents = 5000L, createdAt = 0L)
         assertThat(vm.hasBudgetsForCategory(3L, listOf(budget))).isTrue()
         assertThat(vm.hasBudgetsForCategory(99L, listOf(budget))).isFalse()
     }

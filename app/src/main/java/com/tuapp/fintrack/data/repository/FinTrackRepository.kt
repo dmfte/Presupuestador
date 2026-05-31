@@ -2,16 +2,10 @@ package com.tuapp.fintrack.data.repository
 
 import com.tuapp.fintrack.data.dao.BudgetDao
 import com.tuapp.fintrack.data.dao.CategoryDao
-import com.tuapp.fintrack.data.dao.HolidayDao
-import com.tuapp.fintrack.data.dao.PayCycleDao
-import com.tuapp.fintrack.data.dao.PayEventDao
 import com.tuapp.fintrack.data.dao.TransactionDao
 import com.tuapp.fintrack.data.model.Budget
 import com.tuapp.fintrack.data.model.Category
 import com.tuapp.fintrack.data.model.CategoryApplicability
-import com.tuapp.fintrack.data.model.Holiday
-import com.tuapp.fintrack.data.model.PayCycle
-import com.tuapp.fintrack.data.model.PayEvent
 import com.tuapp.fintrack.data.model.Transaction
 import com.tuapp.fintrack.data.model.TransactionType
 import kotlinx.coroutines.flow.Flow
@@ -22,16 +16,10 @@ import javax.inject.Singleton
 class FinTrackRepository @Inject constructor(
     private val transactionDao: TransactionDao,
     private val categoryDao: CategoryDao,
-    private val budgetDao: BudgetDao,
-    private val payCycleDao: PayCycleDao,
-    private val payEventDao: PayEventDao,
-    private val holidayDao: HolidayDao
+    private val budgetDao: BudgetDao
 ) {
     val allTransactions: Flow<List<Transaction>> = transactionDao.getAllActive()
     val allCategories: Flow<List<Category>> = categoryDao.getAllActive()
-    val allPayCycles: Flow<List<PayCycle>> = payCycleDao.getAllActive()
-    val allPayEvents: Flow<List<PayEvent>> = payEventDao.getAllActive()
-    val allHolidays: Flow<List<Holiday>> = holidayDao.getAll()
 
     suspend fun addTransaction(tx: Transaction): Long = transactionDao.insert(tx)
     suspend fun updateTransaction(tx: Transaction) = transactionDao.update(tx)
@@ -57,24 +45,8 @@ class FinTrackRepository @Inject constructor(
     suspend fun deactivateBudget(id: Long) = budgetDao.deactivate(id)
     suspend fun reactivateBudget(id: Long) = budgetDao.reactivate(id)
     suspend fun getBudgetById(id: Long): Budget? = budgetDao.getById(id)
-    suspend fun hasDuplicateBudget(categoryId: Long, cycleId: Long): Boolean =
-        budgetDao.countByCategoryAndCycle(categoryId, cycleId) > 0
+    suspend fun hasDuplicateBudget(categoryId: Long): Boolean =
+        budgetDao.countByCategory(categoryId) > 0
     suspend fun getAllActiveBudgets(): List<Budget> = budgetDao.getAllActiveOnce()
     val allBudgets: Flow<List<Budget>> = budgetDao.getAllActive()
-
-    suspend fun addPayCycle(cycle: PayCycle): Long = payCycleDao.insert(cycle)
-    suspend fun updatePayCycle(cycle: PayCycle) = payCycleDao.update(cycle)
-    suspend fun deactivatePayCycle(id: Long) = payCycleDao.deactivate(id)
-    suspend fun reactivatePayCycle(id: Long) = payCycleDao.reactivate(id)
-
-    suspend fun addPayEvent(event: PayEvent): Long = payEventDao.insert(event)
-    suspend fun getPayEventsInRange(startMs: Long, endMs: Long): List<PayEvent> =
-        payEventDao.getByDateRange(startMs, endMs)
-    suspend fun existsPayEventForDate(startMs: Long, endMs: Long): Boolean =
-        payEventDao.existsForDate(startMs, endMs)
-
-    suspend fun addHoliday(holiday: Holiday): Long = holidayDao.insert(holiday)
-    suspend fun updateHoliday(holiday: Holiday) = holidayDao.update(holiday)
-    suspend fun setHolidayEnabled(id: Long, enabled: Boolean) = holidayDao.setEnabled(id, enabled)
-    suspend fun deleteHoliday(id: Long) = holidayDao.delete(id)
 }

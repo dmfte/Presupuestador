@@ -26,16 +26,15 @@ class ExportFormattersTest {
         amountCents: Long = 1234L,
         categoryName: String? = "Groceries",
         description: String = "Weekly shopping",
-        occurredAt: Long = baseMs,
-        isPayEvent: Boolean = false
-    ) = ExportTransaction(type, amountCents, categoryName, description, occurredAt, isPayEvent)
+        occurredAt: Long = baseMs
+    ) = ExportTransaction(type, amountCents, categoryName, description, occurredAt)
 
     // ── CSV tests ─────────────────────────────────────────────────────────────
 
     @Test
     fun `csv starts with header row`() {
         val csv = buildCsvContent(emptyList())
-        assertThat(csv.lines()[0]).isEqualTo("date,year,type,amount_usd,category,description,is_pay_event")
+        assertThat(csv.lines()[0]).isEqualTo("date,year,type,amount_usd,category,description")
     }
 
     @Test
@@ -55,22 +54,6 @@ class ExportFormattersTest {
     fun `csv year column derived from timestamp`() {
         val csv = buildCsvContent(listOf(makeTx(occurredAt = baseMs)))
         assertThat(csv).contains(",2025,")
-    }
-
-    @Test
-    fun `csv pay event marked as true`() {
-        val tx = makeTx(type = TransactionType.INCOME, amountCents = 0L, categoryName = null,
-            description = "Pay event", isPayEvent = true)
-        val csv = buildCsvContent(listOf(tx))
-        val row = csv.trim().lines()[1]
-        assertThat(row.endsWith(",true")).isTrue()
-    }
-
-    @Test
-    fun `csv non-pay-event marked as false`() {
-        val csv = buildCsvContent(listOf(makeTx()))
-        val row = csv.trim().lines()[1]
-        assertThat(row.endsWith(",false")).isTrue()
     }
 
     @Test
@@ -167,18 +150,6 @@ class ExportFormattersTest {
         val yearData = Json.parseToJsonElement(json).jsonArray[0].jsonObject["2025"]!!.jsonObject
         val incomeTotal = yearData["incomeTotalCents"]!!.jsonPrimitive.content.toLong()
         assertThat(incomeTotal).isEqualTo(5000L)
-    }
-
-    @Test
-    fun `json pay event marked with is_pay_event true`() {
-        val tx = makeTx(
-            type = TransactionType.INCOME, amountCents = 0L, categoryName = null,
-            description = "Pay event", isPayEvent = true
-        )
-        val json = buildJsonContent(listOf(tx))
-        val yearData = Json.parseToJsonElement(json).jsonArray[0].jsonObject["2025"]!!.jsonObject
-        val txJson = yearData["transactions"]!!.jsonArray[0].jsonObject
-        assertThat(txJson["is_pay_event"]!!.jsonPrimitive.content).isEqualTo("true")
     }
 
     @Test
