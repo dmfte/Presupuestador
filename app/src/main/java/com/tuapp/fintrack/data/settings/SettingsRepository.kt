@@ -30,6 +30,7 @@ class SettingsRepository @Inject constructor(
         val KEY_STARTING_BALANCE_CENTS = longPreferencesKey("starting_balance_cents")
         val KEY_STARTING_BALANCE_SET_AT = longPreferencesKey("starting_balance_set_at")
         val KEY_HAS_SEEN_STARTING_BALANCE_PROMPT = booleanPreferencesKey("has_seen_starting_balance_prompt")
+        val KEY_CARRY_FORWARD_EPOCH = longPreferencesKey("carry_forward_epoch")
     }
 
     val requireCategory: Flow<Boolean> = dataStore.data.map { prefs ->
@@ -80,6 +81,10 @@ class SettingsRepository @Inject constructor(
         prefs[KEY_HAS_SEEN_STARTING_BALANCE_PROMPT] ?: false
     }
 
+    val carryForwardEpoch: Flow<Long> = dataStore.data.map { prefs ->
+        prefs[KEY_CARRY_FORWARD_EPOCH] ?: 0L
+    }
+
     suspend fun setRequireCategory(value: Boolean) {
         dataStore.edit { it[KEY_REQUIRE_CATEGORY] = value }
     }
@@ -128,6 +133,19 @@ class SettingsRepository @Inject constructor(
             it[KEY_STARTING_BALANCE_SET_AT] = System.currentTimeMillis()
             it[KEY_HAS_SEEN_STARTING_BALANCE_PROMPT] = true
         }
+    }
+
+    suspend fun recordCarryForward(periodStartMs: Long, newStartingBalanceCents: Long) {
+        dataStore.edit {
+            it[KEY_CARRY_FORWARD_EPOCH] = periodStartMs
+            it[KEY_STARTING_BALANCE_CENTS] = newStartingBalanceCents
+            it[KEY_STARTING_BALANCE_SET_AT] = System.currentTimeMillis()
+            it[KEY_HAS_SEEN_STARTING_BALANCE_PROMPT] = true
+        }
+    }
+
+    suspend fun setPeriodStartDate(epochMs: Long) {
+        dataStore.edit { it[KEY_CARRY_FORWARD_EPOCH] = epochMs }
     }
 
     suspend fun markStartingBalancePromptSeen() {

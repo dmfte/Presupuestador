@@ -54,6 +54,9 @@ class SettingsViewModel @Inject constructor(
     val startingBalanceSetAt: StateFlow<Long> = settingsRepository.startingBalanceSetAt
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0L)
 
+    val periodStartMs: StateFlow<Long> = settingsRepository.carryForwardEpoch
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0L)
+
     private val _hasNotificationAccess = MutableStateFlow(checkNotificationAccess())
     val hasNotificationAccess: StateFlow<Boolean> = _hasNotificationAccess.asStateFlow()
 
@@ -111,6 +114,12 @@ class SettingsViewModel @Inject constructor(
     fun setStartingBalance(cents: Long) {
         viewModelScope.launch {
             settingsRepository.setStartingBalance(cents)
+        }
+    }
+
+    fun setPeriodStartDate(epochMs: Long) {
+        viewModelScope.launch {
+            settingsRepository.setPeriodStartDate(epochMs)
         }
     }
 }

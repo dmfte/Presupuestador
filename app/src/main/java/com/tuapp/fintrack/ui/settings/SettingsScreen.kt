@@ -13,6 +13,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -32,6 +34,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -64,6 +67,7 @@ fun SettingsScreen(
     val requireCategory by viewModel.requireCategory.collectAsState()
     val startingBalanceCents by viewModel.startingBalanceCents.collectAsState()
     val startingBalanceSetAt by viewModel.startingBalanceSetAt.collectAsState()
+    val periodStartMs by viewModel.periodStartMs.collectAsState()
     val smsEnabled by viewModel.smsAutoEnabled.collectAsState()
     val smsIdentifier by viewModel.smsIdentifierText.collectAsState()
     val smsAmountPrefix by viewModel.smsAmountPrefix.collectAsState()
@@ -87,9 +91,11 @@ fun SettingsScreen(
     var showDescriptionDialog by remember { mutableStateOf(false) }
     var showNotificationAccessDialog by remember { mutableStateOf(false) }
     var showStartingBalanceDialog by remember { mutableStateOf(false) }
+    var showPeriodDatePickerDialog by remember { mutableStateOf(false) }
 
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale.US) }
     val setAtFormat = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
+    val periodDateFormat = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
 
     Scaffold(
         topBar = {
@@ -107,6 +113,32 @@ fun SettingsScreen(
             modifier = Modifier.fillMaxSize(),
             contentPadding = innerPadding
         ) {
+            item {
+                Text(
+                    text = "Budget period",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp)
+                )
+            }
+            item {
+                val periodText = if (periodStartMs == 0L) "All time"
+                    else "Started ${periodDateFormat.format(Date(periodStartMs))}"
+                ListItem(
+                    headlineContent = { Text("Period start date") },
+                    supportingContent = { Text(periodText) },
+                    trailingContent = {
+                        Icon(
+                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showPeriodDatePickerDialog = true }
+                )
+                HorizontalDivider()
+            }
             item {
                 val balanceText = currencyFormat.format(startingBalanceCents / 100.0)
                 val supporting = if (startingBalanceSetAt > 0L) {
@@ -343,6 +375,30 @@ fun SettingsScreen(
             onConfirm = { viewModel.setSmsDescriptionTemplate(it) },
             onDismiss = { showDescriptionDialog = false }
         )
+    }
+
+    if (showPeriodDatePickerDialog) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = if (periodStartMs > 0L) periodStartMs else System.currentTimeMillis()
+        )
+        DatePickerDialog(
+            onDismissRequest = { showPeriodDatePickerDialog = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { viewModel.setPeriodStartDate(it) }
+                    showPeriodDatePickerDialog = false
+                }) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPeriodDatePickerDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
     }
 
     if (showStartingBalanceDialog) {

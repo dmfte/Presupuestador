@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -23,6 +24,7 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -30,6 +32,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -62,8 +67,10 @@ fun HomeScreen(
     val transactions by mainViewModel.transactions.collectAsState()
     val periodSummary by viewModel.periodSummary.collectAsState()
     val startingBalanceCents by viewModel.startingBalanceCents.collectAsState()
+    val availableBalanceCents by viewModel.availableBalanceCents.collectAsState()
     val currencyFormat = NumberFormat.getCurrencyInstance(Locale.US)
-    val monthFormat = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
+    val periodDateFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+    var showResetDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -101,21 +108,25 @@ fun HomeScreen(
                 ) {
                     if (periodSummary != null) {
                         val summary = periodSummary!!
-                        val period = summary.period
-                        val cal = Calendar.getInstance().apply { timeInMillis = period.startDateMs }
-                        val title = monthFormat.format(cal.time)
+                        val epoch = summary.period.startDateMs
+                        val title = if (epoch == 0L) "All time"
+                            else "Since ${periodDateFormat.format(Date(epoch))}"
                         Text(
                             text = title,
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(Modifier.height(4.dp))
-                        val net = summary.netCents
                         Text(
-                            text = currencyFormat.format(net / 100.0),
+                            text = "Available",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = currencyFormat.format(availableBalanceCents / 100.0),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
-                            color = if (net >= 0) Color(0xFF2E7D32) else Color(0xFFC62828)
+                            color = if (availableBalanceCents >= 0) Color(0xFF2E7D32) else Color(0xFFC62828)
                         )
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -179,6 +190,13 @@ fun HomeScreen(
                                     color = if (startingBalanceCents >= 0) Color(0xFF2E7D32) else Color(0xFFC62828)
                                 )
                             }
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        OutlinedButton(
+                            onClick = { showResetDialog = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Reset budget period")
                         }
                     } else {
                         Text(
@@ -290,5 +308,32 @@ fun HomeScreen(
                 }
             }
         }
+    }
+
+    if (showResetDialog) {
+        val amountText = currencyFormat.format(availableBalanceCents / 100.0)
+        AlertDialog(
+            onDismissRequest = { showResetDialog = false },
+            title = { Text("Reset budget period?") },
+            text = {
+                Text(
+                    "$amountText will become your new starting balance and a new period begins today. " +
+                        "This cannot be undone."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.resetBudgetPeriod()
+                    showResetDialog = false
+                }) {
+                    Text("Reset")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
