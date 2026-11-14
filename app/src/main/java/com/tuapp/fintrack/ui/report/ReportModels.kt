@@ -47,7 +47,7 @@ data class ReportUiState(
     val topCategories: List<TopCategory> = emptyList(),
     val suggestions: List<UiMessage> = emptyList(),
     val isExporting: Boolean = false,
-    @StringRes val exportError: Int? = null
+    @param:StringRes val exportError: Int? = null
 ) {
     val netCents: Long get() = totalIncomeCents - totalExpenseCents - totalReservedCents
 }

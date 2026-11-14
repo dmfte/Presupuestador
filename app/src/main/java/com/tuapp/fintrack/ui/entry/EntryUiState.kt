@@ -14,11 +14,11 @@ data class EntryUiState(
     val occurredAtMs: Long = System.currentTimeMillis(),
     val availableCategories: List<Category> = emptyList(),
     val requireCategory: Boolean = false,
-    @StringRes val amountError: Int? = null,
-    @StringRes val categoryError: Int? = null,
+    @param:StringRes val amountError: Int? = null,
+    @param:StringRes val categoryError: Int? = null,
     val isSaving: Boolean = false,
     val savedEvent: SavedEvent? = null,
-    @StringRes val saveError: Int? = null,
+    @param:StringRes val saveError: Int? = null,
     /** Sum of active RESERVE rows in the current budget period. */
     val reservedAvailableCents: Long = 0L,
     val deductFromReserved: Boolean = false

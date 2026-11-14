@@ -9,7 +9,7 @@ import com.tuapp.fintrack.data.model.CategoryApplicability
 import com.tuapp.fintrack.data.model.TransactionType
 
 /** A localisable message produced outside the UI layer (ViewModels, engines). */
-data class UiMessage(@StringRes val id: Int, val args: List<Any> = emptyList()) {
+data class UiMessage(@param:StringRes val id: Int, val args: List<Any> = emptyList()) {
     constructor(@StringRes id: Int, vararg args: Any) : this(id, args.toList())
 
     fun resolve(context: Context): String = context.getString(id, *args.toTypedArray())

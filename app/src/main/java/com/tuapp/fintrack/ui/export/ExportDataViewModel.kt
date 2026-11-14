@@ -26,14 +26,14 @@ import javax.inject.Inject
 data class ExportUiState(
     val isCsvExporting: Boolean = false,
     val isJsonExporting: Boolean = false,
-    @StringRes val error: Int? = null
+    @param:StringRes val error: Int? = null
 )
 
 @HiltViewModel
 class ExportDataViewModel @Inject constructor(
     private val exportUseCase: ExportTransactionsUseCase,
     private val settingsRepository: SettingsRepository,
-    @ApplicationContext private val appContext: Context
+    @param:ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
     val lastCsvExportTime: StateFlow<Long?> = settingsRepository.lastCsvExportTime

@@ -14,6 +14,8 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
+private val prettyJson = Json { prettyPrint = true }
+
 internal fun buildCsvContent(transactions: List<ExportTransaction>): String {
     val dateFmt = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
         timeZone = TimeZone.getDefault()
@@ -86,5 +88,5 @@ internal fun buildJsonContent(transactions: List<ExportTransaction>): String {
         result.add(JsonObject(mapOf(year.toString() to yearData)))
     }
 
-    return Json { prettyPrint = true }.encodeToString(JsonArray.serializer(), JsonArray(result))
+    return prettyJson.encodeToString(JsonArray.serializer(), JsonArray(result))
 }
