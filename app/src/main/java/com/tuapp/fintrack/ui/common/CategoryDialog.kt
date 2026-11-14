@@ -1,19 +1,19 @@
 package com.tuapp.fintrack.ui.common
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
@@ -29,7 +29,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.tuapp.fintrack.R
 import com.tuapp.fintrack.data.model.CategoryApplicability
 import com.tuapp.fintrack.ui.categories.CategoriesViewModel.Companion.CATEGORY_COLORS
 
@@ -46,7 +51,7 @@ fun CategoryDialog(
     onDismiss: () -> Unit
 ) {
     var name by remember { mutableStateOf(initialName) }
-    var nameError by remember { mutableStateOf<String?>(null) }
+    var nameError by remember { mutableStateOf<Int?>(null) }
     var applicability by remember { mutableStateOf(initialApplicability) }
     var selectedColor by remember {
         mutableStateOf(initialColor ?: CATEGORY_COLORS[existingCount % CATEGORY_COLORS.size])
@@ -63,19 +68,15 @@ fun CategoryDialog(
                         name = it
                         nameError = null
                     },
-                    label = { Text("Category name") },
+                    label = { Text(stringResource(R.string.category_name_label)) },
                     isError = nameError != null,
-                    supportingText = nameError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+                    supportingText = nameError?.let { { Text(stringResource(it), color = MaterialTheme.colorScheme.error) } },
                     singleLine = true
                 )
 
-                val applicabilityOptions = listOf(
-                    CategoryApplicability.EXPENSE to "Expense",
-                    CategoryApplicability.INCOME to "Income",
-                    CategoryApplicability.BOTH to "Both"
-                )
+                val applicabilityOptions = CategoryApplicability.entries
                 SingleChoiceSegmentedButtonRow {
-                    applicabilityOptions.forEachIndexed { idx, (type, label) ->
+                    applicabilityOptions.forEachIndexed { idx, type ->
                         SegmentedButton(
                             selected = applicability == type,
                             onClick = { applicability = type },
@@ -83,32 +84,47 @@ fun CategoryDialog(
                                 index = idx,
                                 count = applicabilityOptions.size
                             ),
-                            label = { Text(label, style = MaterialTheme.typography.labelSmall) }
+                            label = { Text(stringResource(type.labelRes()), style = MaterialTheme.typography.labelSmall) }
                         )
                     }
                 }
 
-                Text("Color", style = MaterialTheme.typography.labelMedium)
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    CATEGORY_COLORS.forEach { hex ->
+                Text(stringResource(R.string.category_color_label), style = MaterialTheme.typography.labelMedium)
+                FlowRow(modifier = Modifier.selectableGroup()) {
+                    CATEGORY_COLORS.forEachIndexed { index, hex ->
                         val colorInt = remember(hex) {
                             try { android.graphics.Color.parseColor(hex) }
                             catch (e: Exception) { android.graphics.Color.GRAY }
                         }
+                        val selected = hex == selectedColor
+                        val label = stringResource(R.string.category_color_option, index + 1)
                         Box(
                             modifier = Modifier
-                                .size(28.dp)
-                                .background(Color(colorInt), CircleShape)
-                                .then(
-                                    if (hex == selectedColor)
-                                        Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                                    else Modifier
+                                .size(48.dp)
+                                .selectable(
+                                    selected = selected,
+                                    role = Role.RadioButton,
+                                    onClick = { selectedColor = hex }
                                 )
-                                .clickable { selectedColor = hex }
-                        )
+                                .semantics { contentDescription = label },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .background(Color(colorInt), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (selected) {
+                                    Icon(
+                                        Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -116,12 +132,12 @@ fun CategoryDialog(
         confirmButton = {
             TextButton(onClick = {
                 if (name.isBlank()) {
-                    nameError = "Name cannot be empty"
+                    nameError = R.string.category_name_empty
                     return@TextButton
                 }
                 val accepted = onConfirm(name.trim(), applicability, selectedColor)
                 if (!accepted) {
-                    nameError = "Name already exists"
+                    nameError = R.string.category_name_exists
                 } else {
                     onDismiss()
                 }
@@ -130,7 +146,7 @@ fun CategoryDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         }
     )
 }

@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -19,12 +19,14 @@ import com.tuapp.fintrack.ui.home.HomeScreen
 import com.tuapp.fintrack.ui.list.TransactionListScreen
 import com.tuapp.fintrack.ui.report.ReportScreen
 import com.tuapp.fintrack.ui.settings.SettingsScreen
+import com.tuapp.fintrack.ui.sms.SmsRuleEditScreen
+import com.tuapp.fintrack.ui.sms.SmsRulesScreen
 
 @Composable
 fun FinTrackNavHost(initialTransactionType: String? = null) {
     val navController = rememberNavController()
 
-    var pendingType by remember { mutableStateOf(initialTransactionType) }
+    var pendingType by rememberSaveable { mutableStateOf(initialTransactionType) }
     LaunchedEffect(pendingType) {
         pendingType?.let { type ->
             navController.navigate(Screen.Entry.route(type = type))
@@ -69,8 +71,29 @@ fun FinTrackNavHost(initialTransactionType: String? = null) {
         composable(Screen.Settings.route) {
             SettingsScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onExportData = { navController.navigate(Screen.ExportData.route) }
+                onExportData = { navController.navigate(Screen.ExportData.route) },
+                onSmsRules = { navController.navigate(Screen.SmsRules.route) }
             )
+        }
+
+        composable(Screen.SmsRules.route) {
+            SmsRulesScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onAddRule = { navController.navigate(Screen.SmsRuleEdit.route()) },
+                onEditRule = { id -> navController.navigate(Screen.SmsRuleEdit.route(id)) }
+            )
+        }
+
+        composable(
+            route = Screen.SmsRuleEdit.route,
+            arguments = listOf(
+                navArgument("ruleId") {
+                    type = NavType.LongType
+                    defaultValue = -1L
+                }
+            )
+        ) {
+            SmsRuleEditScreen(onNavigateBack = { navController.popBackStack() })
         }
 
         composable(Screen.ExportData.route) {

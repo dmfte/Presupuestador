@@ -34,7 +34,7 @@ class ExportFormattersTest {
     @Test
     fun `csv starts with header row`() {
         val csv = buildCsvContent(emptyList())
-        assertThat(csv.lines()[0]).isEqualTo("date,year,type,amount_usd,category,description")
+        assertThat(csv.lines()[0]).isEqualTo("date,year,type,amount_usd,category,description,is_starting_balance")
     }
 
     @Test
@@ -169,5 +169,19 @@ class ExportFormattersTest {
         // First entry should be the more recent year (2025)
         assertThat(array[0].jsonObject.containsKey("2025")).isTrue()
         assertThat(array[1].jsonObject.containsKey("2024")).isTrue()
+    }
+
+    @Test
+    fun `csv amount uses dot decimal on a Spanish-locale device`() {
+        val original = java.util.Locale.getDefault()
+        try {
+            java.util.Locale.setDefault(java.util.Locale.forLanguageTag("es-SV"))
+            val csv = buildCsvContent(listOf(makeTx(amountCents = 1234L)))
+            val row = csv.lines()[1]
+            assertThat(row).contains(",12.34,")
+            assertThat(row.split(",")).hasSize(7)
+        } finally {
+            java.util.Locale.setDefault(original)
+        }
     }
 }

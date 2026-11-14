@@ -9,6 +9,8 @@ enum class DateRangePreset { THIS_MONTH, LAST_MONTH, CUSTOM, ALL }
 data class TransactionListUiState(
     val transactions: List<Transaction> = emptyList(),
     val categories: List<Category> = emptyList(),
+    /** Category ids referenced by any active transaction (unfiltered), for the filter menu. */
+    val usedCategoryIds: Set<Long> = emptySet(),
     val typeFilter: TransactionType? = null,
     val categoryFilter: Long? = null,
     val datePreset: DateRangePreset = DateRangePreset.ALL,

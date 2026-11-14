@@ -1,5 +1,8 @@
 package com.tuapp.fintrack.ui.export
 
+import androidx.annotation.StringRes
+import com.tuapp.fintrack.R
+import com.tuapp.fintrack.ui.common.freshExportDir
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.FileProvider
@@ -23,7 +26,7 @@ import javax.inject.Inject
 data class ExportUiState(
     val isCsvExporting: Boolean = false,
     val isJsonExporting: Boolean = false,
-    val error: String? = null
+    @StringRes val error: Int? = null
 )
 
 @HiltViewModel
@@ -50,7 +53,7 @@ class ExportDataViewModel @Inject constructor(
                 shareFile(file, "text/csv")
                 settingsRepository.setLastCsvExportTime(System.currentTimeMillis())
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = e.message ?: "CSV export failed") }
+                _uiState.update { it.copy(error = R.string.export_csv_failed) }
             } finally {
                 _uiState.update { it.copy(isCsvExporting = false) }
             }
@@ -65,7 +68,7 @@ class ExportDataViewModel @Inject constructor(
                 shareFile(file, "application/json")
                 settingsRepository.setLastJsonExportTime(System.currentTimeMillis())
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = e.message ?: "JSON export failed") }
+                _uiState.update { it.copy(error = R.string.export_json_failed) }
             } finally {
                 _uiState.update { it.copy(isJsonExporting = false) }
             }
@@ -79,7 +82,7 @@ class ExportDataViewModel @Inject constructor(
     private suspend fun writeCsvFile(): File {
         val transactions = exportUseCase()
         val content = buildCsvContent(transactions)
-        val file = File(appContext.cacheDir, "presupuestador_export_${System.currentTimeMillis()}.csv")
+        val file = File(freshExportDir(appContext), "presupuestador_export_${System.currentTimeMillis()}.csv")
         file.writeText(content, Charsets.UTF_8)
         return file
     }
@@ -87,7 +90,7 @@ class ExportDataViewModel @Inject constructor(
     private suspend fun writeJsonFile(): File {
         val transactions = exportUseCase()
         val content = buildJsonContent(transactions)
-        val file = File(appContext.cacheDir, "presupuestador_export_${System.currentTimeMillis()}.json")
+        val file = File(freshExportDir(appContext), "presupuestador_export_${System.currentTimeMillis()}.json")
         file.writeText(content, Charsets.UTF_8)
         return file
     }
@@ -104,7 +107,7 @@ class ExportDataViewModel @Inject constructor(
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         appContext.startActivity(
-            Intent.createChooser(intent, "Share export").apply {
+            Intent.createChooser(intent, appContext.getString(R.string.export_share)).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
         )

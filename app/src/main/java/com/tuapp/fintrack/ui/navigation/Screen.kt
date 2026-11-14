@@ -16,4 +16,9 @@ sealed class Screen(val route: String) {
     data object Report : Screen("report")
     data object Settings : Screen("settings")
     data object ExportData : Screen("export_data")
+    data object SmsRules : Screen("sms_rules")
+    data object SmsRuleEdit : Screen("sms_rule_edit?ruleId={ruleId}") {
+        fun route(ruleId: Long? = null): String =
+            if (ruleId == null) "sms_rule_edit" else "sms_rule_edit?ruleId=$ruleId"
+    }
 }

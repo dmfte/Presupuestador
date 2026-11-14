@@ -1,6 +1,7 @@
 package com.tuapp.fintrack.ui.budgets
 
 import com.google.common.truth.Truth.assertThat
+import com.tuapp.fintrack.R
 import com.tuapp.fintrack.data.model.Budget
 import com.tuapp.fintrack.data.model.Category
 import com.tuapp.fintrack.data.model.CategoryApplicability
@@ -77,7 +78,7 @@ class BudgetsViewModelTest {
         vm.onAddBudget(1L, 10000L)
         testDispatcher.scheduler.advanceUntilIdle()
 
-        assertThat(vm.uiState.value.snackbarMessage).contains("Budget created")
+        assertThat(vm.uiState.value.snackbarMessage?.id).isEqualTo(R.string.budget_created)
     }
 
     @Test
@@ -90,7 +91,7 @@ class BudgetsViewModelTest {
         vm.onAddBudget(1L, 10000L)
         testDispatcher.scheduler.advanceUntilIdle()
 
-        assertThat(vm.uiState.value.snackbarMessage).contains("already exists")
+        assertThat(vm.uiState.value.snackbarMessage?.id).isEqualTo(R.string.budget_exists)
     }
 
     @Test
@@ -104,7 +105,7 @@ class BudgetsViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertThat(vm.uiState.value.pendingRestoreId).isEqualTo(7L)
-        assertThat(vm.uiState.value.snackbarMessage).contains("deleted")
+        assertThat(vm.uiState.value.snackbarMessage?.id).isEqualTo(R.string.budget_deleted)
     }
 
     @Test
@@ -119,7 +120,7 @@ class BudgetsViewModelTest {
         vm.onEditBudget(1L, 9999L)
         testDispatcher.scheduler.advanceUntilIdle()
 
-        assertThat(vm.uiState.value.snackbarMessage).isEqualTo("Budget updated")
+        assertThat(vm.uiState.value.snackbarMessage?.id).isEqualTo(R.string.budget_updated)
     }
 
     @Test

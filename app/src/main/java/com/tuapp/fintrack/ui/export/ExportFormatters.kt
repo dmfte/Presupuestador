@@ -2,6 +2,7 @@ package com.tuapp.fintrack.ui.export
 
 import com.tuapp.fintrack.data.model.TransactionType
 import com.tuapp.fintrack.domain.usecase.ExportTransaction
+import com.tuapp.fintrack.domain.util.Money
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
@@ -24,7 +25,7 @@ internal fun buildCsvContent(transactions: List<ExportTransaction>): String {
         val year = Calendar.getInstance(TimeZone.getDefault()).apply {
             timeInMillis = tx.occurredAt
         }.get(Calendar.YEAR)
-        val amountUsd = "%.2f".format(tx.amountCents / 100.0)
+        val amountUsd = Money.centsToPlain(tx.amountCents)
         val category = escapeCsvField(tx.categoryName ?: "")
         val description = escapeCsvField(tx.description)
         sb.append("$date,$year,${tx.type},$amountUsd,$category,$description,${tx.isStartingBalance}\n")

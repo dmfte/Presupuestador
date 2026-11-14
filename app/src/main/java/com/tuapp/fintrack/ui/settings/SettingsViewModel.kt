@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.tuapp.fintrack.data.model.Category
 import com.tuapp.fintrack.data.repository.FinTrackRepository
 import com.tuapp.fintrack.data.settings.SettingsRepository
+import com.tuapp.fintrack.sms.SmsRule
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,20 +34,8 @@ class SettingsViewModel @Inject constructor(
     val smsAutoEnabled: StateFlow<Boolean> = settingsRepository.smsAutoEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
-    val smsIdentifierText: StateFlow<String> = settingsRepository.smsIdentifierText
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
-
-    val smsAmountPrefix: StateFlow<String> = settingsRepository.smsAmountPrefix
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
-
-    val smsTransactionType: StateFlow<String> = settingsRepository.smsTransactionType
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "EXPENSE")
-
-    val smsDefaultCategoryId: StateFlow<Long?> = settingsRepository.smsDefaultCategoryId
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
-    val smsDescriptionTemplate: StateFlow<String> = settingsRepository.smsDescriptionTemplate
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
+    val smsRules: StateFlow<List<SmsRule>> = settingsRepository.smsRules
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val startingBalanceCents: StateFlow<Long> = settingsRepository.startingBalanceCents
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0L)
@@ -81,33 +70,11 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setSmsIdentifierText(value: String) {
+    fun deleteData(everything: Boolean, onDone: () -> Unit) {
         viewModelScope.launch {
-            settingsRepository.setSmsIdentifierText(value)
-        }
-    }
-
-    fun setSmsAmountPrefix(value: String) {
-        viewModelScope.launch {
-            settingsRepository.setSmsAmountPrefix(value)
-        }
-    }
-
-    fun setSmsTransactionType(value: String) {
-        viewModelScope.launch {
-            settingsRepository.setSmsTransactionType(value)
-        }
-    }
-
-    fun setSmsDefaultCategoryId(value: Long?) {
-        viewModelScope.launch {
-            settingsRepository.setSmsDefaultCategoryId(value)
-        }
-    }
-
-    fun setSmsDescriptionTemplate(value: String) {
-        viewModelScope.launch {
-            settingsRepository.setSmsDescriptionTemplate(value)
+            repository.deleteAllData(includeCategoriesAndBudgets = everything)
+            if (everything) settingsRepository.clearAll() else settingsRepository.resetBalanceAndPeriod()
+            onDone()
         }
     }
 

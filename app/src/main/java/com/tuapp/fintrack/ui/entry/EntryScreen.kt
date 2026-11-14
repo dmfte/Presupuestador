@@ -1,7 +1,7 @@
 package com.tuapp.fintrack.ui.entry
 
+import com.tuapp.fintrack.domain.util.Dates
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,8 +15,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenuItem
@@ -40,19 +40,28 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.annotation.StringRes
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tuapp.fintrack.R
+import com.tuapp.fintrack.ui.common.CategoryDialog
+import com.tuapp.fintrack.ui.common.labelRes
+import com.tuapp.fintrack.ui.theme.LocalFinColors
 import com.tuapp.fintrack.data.model.CategoryApplicability
+import com.tuapp.fintrack.domain.usecase.ReserveDeduction
+import java.text.NumberFormat
 import com.tuapp.fintrack.data.model.TransactionType
-import com.tuapp.fintrack.ui.entry.EntryViewModel.Companion.formatCentsToInput
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -63,32 +72,40 @@ fun EntryScreen(
     onNavigateBack: () -> Unit,
     viewModel: EntryViewModel = hiltViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val isEditing = state.transactionId != null
+    val savedMsg = stringResource(R.string.transaction_saved)
+    val saveErrorMsg = state.saveError?.let { stringResource(it) }
 
     LaunchedEffect(state.savedEvent) {
-        if (state.savedEvent) {
-            snackbarHostState.showSnackbar(if (isEditing) "Transaction updated" else "Transaction saved")
-            viewModel.onSavedEventConsumed()
-            if (isEditing) onNavigateBack()
+        when (state.savedEvent) {
+            SavedEvent.UPDATED -> {
+                viewModel.onSavedEventConsumed()
+                onNavigateBack()
+            }
+            SavedEvent.CREATED -> {
+                viewModel.onSavedEventConsumed()
+                snackbarHostState.showSnackbar(savedMsg)
+            }
+            null -> Unit
         }
     }
 
-    LaunchedEffect(state.saveError) {
-        state.saveError?.let { error ->
-            snackbarHostState.showSnackbar(error)
+    LaunchedEffect(saveErrorMsg) {
+        saveErrorMsg?.let { error ->
             viewModel.clearSaveError()
+            snackbarHostState.showSnackbar(error)
         }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (isEditing) "Edit Transaction" else "Add Transaction") },
+                title = { Text(stringResource(if (isEditing) R.string.edit_transaction else R.string.add_transaction)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 }
             )
@@ -111,6 +128,16 @@ fun EntryScreen(
                 onSelect = viewModel::onTypeChanged
             )
 
+            if (!isEditing) {
+                DeductFromReservedRow(
+                    checked = state.willDeductFromReserved,
+                    enabled = state.canDeductFromReserved,
+                    reservedCents = state.reservedAvailableCents,
+                    amountCents = state.amountCents,
+                    onCheckedChange = viewModel::onDeductFromReservedChanged
+                )
+            }
+
             AmountField(
                 text = state.amountText,
                 onTextChange = viewModel::onAmountTextChanged,
@@ -131,7 +158,7 @@ fun EntryScreen(
             OutlinedTextField(
                 value = state.description,
                 onValueChange = viewModel::onDescriptionChanged,
-                label = { Text("Description (optional)") },
+                label = { Text(stringResource(R.string.entry_description_label)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = false,
                 maxLines = 3
@@ -149,7 +176,7 @@ fun EntryScreen(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !state.isSaving
             ) {
-                Text(if (isEditing) "Update" else "Save")
+                Text(stringResource(if (isEditing) R.string.action_update else R.string.action_save))
             }
 
             Spacer(Modifier.height(16.dp))
@@ -164,36 +191,77 @@ private fun TypeToggle(
     onSelect: (TransactionType) -> Unit
 ) {
     val options = listOf(TransactionType.EXPENSE, TransactionType.RESERVE, TransactionType.INCOME)
-    val labels = mapOf(
-        TransactionType.EXPENSE to "Expense",
-        TransactionType.RESERVE to "Reserve",
-        TransactionType.INCOME to "Income"
-    )
+    val fin = LocalFinColors.current
     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
         options.forEachIndexed { idx, type ->
             SegmentedButton(
                 selected = selected == type,
                 onClick = { onSelect(type) },
                 shape = SegmentedButtonDefaults.itemShape(index = idx, count = options.size),
-                colors = if (selected == type) {
-                    when (type) {
-                        TransactionType.EXPENSE -> SegmentedButtonDefaults.colors(
-                            activeContainerColor = Color(0xFFC62828),
-                            activeContentColor = Color.White
-                        )
-                        TransactionType.RESERVE -> SegmentedButtonDefaults.colors(
-                            activeContainerColor = Color(0xFFF9A825),
-                            activeContentColor = Color.White
-                        )
-                        TransactionType.INCOME -> SegmentedButtonDefaults.colors(
-                            activeContainerColor = Color(0xFF2E7D32),
-                            activeContentColor = Color.White
-                        )
-                    }
-                } else {
-                    SegmentedButtonDefaults.colors()
+                colors = when (type) {
+                    TransactionType.EXPENSE -> SegmentedButtonDefaults.colors(
+                        activeContainerColor = fin.expense,
+                        activeContentColor = fin.onExpense
+                    )
+                    TransactionType.RESERVE -> SegmentedButtonDefaults.colors(
+                        activeContainerColor = fin.reserve,
+                        activeContentColor = fin.onReserve
+                    )
+                    TransactionType.INCOME -> SegmentedButtonDefaults.colors(
+                        activeContainerColor = fin.income,
+                        activeContentColor = fin.onIncome
+                    )
                 },
-                label = { Text(labels[type] ?: type.name) }
+                label = { Text(stringResource(type.labelRes())) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun DeductFromReservedRow(
+    checked: Boolean,
+    enabled: Boolean,
+    reservedCents: Long,
+    amountCents: Long,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    val currency = remember { NumberFormat.getCurrencyInstance(Locale.US) }
+    val supporting = if (checked) {
+        val (fromReserve, fromBalance) = ReserveDeduction.split(reservedCents, amountCents)
+        stringResource(
+            R.string.entry_reserve_split,
+            currency.format(fromReserve / 100.0),
+            currency.format(fromBalance / 100.0)
+        )
+    } else {
+        stringResource(R.string.entry_reserved_available, currency.format(reservedCents.coerceAtLeast(0L) / 100.0))
+    }
+    val contentColor = if (enabled) MaterialTheme.colorScheme.onSurface
+        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .toggleable(
+                value = checked,
+                enabled = enabled,
+                role = Role.Checkbox,
+                onValueChange = onCheckedChange
+            )
+    ) {
+        Checkbox(checked = checked, onCheckedChange = null, enabled = enabled)
+        Column(modifier = Modifier.padding(start = 8.dp)) {
+            Text(
+                stringResource(R.string.entry_deduct_from_reserved),
+                style = MaterialTheme.typography.bodyLarge,
+                color = contentColor
+            )
+            Text(
+                supporting,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else contentColor
             )
         }
     }
@@ -203,16 +271,16 @@ private fun TypeToggle(
 private fun AmountField(
     text: String,
     onTextChange: (String) -> Unit,
-    error: String?
+    @StringRes error: Int?
 ) {
     OutlinedTextField(
         value = text,
         onValueChange = onTextChange,
-        label = { Text("Amount (USD)") },
+        label = { Text(stringResource(R.string.starting_balance_input_label)) },
         placeholder = { Text("0.00") },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
         isError = error != null,
-        supportingText = error?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+        supportingText = error?.let { { Text(stringResource(it), color = MaterialTheme.colorScheme.error) } },
         modifier = Modifier.fillMaxWidth(),
         singleLine = true
     )
@@ -226,7 +294,7 @@ private fun CategoryDropdown(
     onSelect: (Long?) -> Unit,
     onAddCategory: (name: String, applicability: CategoryApplicability, color: String) -> Unit,
     transactionType: TransactionType,
-    error: String?
+    @StringRes error: Int?
 ) {
     var expanded by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(false) }
@@ -241,10 +309,10 @@ private fun CategoryDropdown(
             value = selectedName,
             onValueChange = {},
             readOnly = true,
-            label = { Text("Category") },
+            label = { Text(stringResource(R.string.category_label)) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             isError = error != null,
-            supportingText = error?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+            supportingText = error?.let { { Text(stringResource(it), color = MaterialTheme.colorScheme.error) } },
             modifier = Modifier
                 .fillMaxWidth()
                 .menuAnchor(MenuAnchorType.PrimaryNotEditable)
@@ -254,7 +322,7 @@ private fun CategoryDropdown(
             onDismissRequest = { expanded = false }
         ) {
             DropdownMenuItem(
-                text = { Text("None") },
+                text = { Text(stringResource(R.string.sms_category_none)) },
                 onClick = {
                     onSelect(null)
                     expanded = false
@@ -270,7 +338,7 @@ private fun CategoryDropdown(
                 )
             }
             DropdownMenuItem(
-                text = { Text("+ Add new category", color = MaterialTheme.colorScheme.primary) },
+                text = { Text(stringResource(R.string.category_add_new), color = MaterialTheme.colorScheme.primary) },
                 onClick = {
                     expanded = false
                     showAddDialog = true
@@ -280,86 +348,22 @@ private fun CategoryDropdown(
     }
 
     if (showAddDialog) {
-        AddCategoryDialog(
-            transactionType = transactionType,
+        CategoryDialog(
+            title = stringResource(R.string.category_new_title),
+            confirmLabel = stringResource(R.string.action_add),
+            initialApplicability = when (transactionType) {
+                TransactionType.INCOME -> CategoryApplicability.INCOME
+                TransactionType.EXPENSE, TransactionType.RESERVE -> CategoryApplicability.EXPENSE
+            },
             existingCount = categories.size,
             onConfirm = { name, applicability, color ->
-                onAddCategory(name, applicability, color)
-                showAddDialog = false
+                val duplicate = categories.any { it.name.equals(name, ignoreCase = true) }
+                if (!duplicate) onAddCategory(name, applicability, color)
+                !duplicate
             },
             onDismiss = { showAddDialog = false }
         )
     }
-}
-
-@Composable
-private fun AddCategoryDialog(
-    transactionType: TransactionType,
-    existingCount: Int,
-    onConfirm: (name: String, applicability: CategoryApplicability, color: String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var nameText by remember { mutableStateOf("") }
-    var nameError by remember { mutableStateOf<String?>(null) }
-
-    val palette = listOf(
-        "#E53935", "#D81B60", "#8E24AA", "#3949AB",
-        "#1E88E5", "#00ACC1", "#00897B", "#43A047",
-        "#7CB342", "#F4511E", "#FB8C00", "#F6BF26"
-    )
-    val colorHex = palette[existingCount % palette.size]
-
-    val defaultApplicability = when (transactionType) {
-        TransactionType.EXPENSE -> CategoryApplicability.EXPENSE
-        TransactionType.INCOME -> CategoryApplicability.INCOME
-        TransactionType.RESERVE -> CategoryApplicability.EXPENSE
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("New Category") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = nameText,
-                    onValueChange = {
-                        nameText = it
-                        nameError = null
-                    },
-                    label = { Text("Category name") },
-                    isError = nameError != null,
-                    supportingText = nameError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
-                    singleLine = true
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Box(
-                        modifier = Modifier
-                            .padding(top = 4.dp)
-                    ) {
-                        Text(
-                            text = "Color: $colorHex",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                if (nameText.isBlank()) {
-                    nameError = "Name cannot be empty"
-                } else {
-                    onConfirm(nameText.trim(), defaultApplicability, colorHex)
-                }
-            }) {
-                Text("Add")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        }
-    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -376,25 +380,27 @@ private fun DateField(
         value = displayDate,
         onValueChange = {},
         readOnly = true,
-        label = { Text("Date") },
+        label = { Text(stringResource(R.string.entry_date_label)) },
         modifier = Modifier.fillMaxWidth(),
         trailingIcon = {
-            TextButton(onClick = { showPicker = true }) { Text("Change") }
+            TextButton(onClick = { showPicker = true }) { Text(stringResource(R.string.action_change)) }
         }
     )
 
     if (showPicker) {
-        val pickerState = rememberDatePickerState(initialSelectedDateMillis = dateMs)
+        val pickerState = rememberDatePickerState(initialSelectedDateMillis = Dates.localMillisToPickerMillis(dateMs))
         DatePickerDialog(
             onDismissRequest = { showPicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    pickerState.selectedDateMillis?.let { onDateSelected(it) }
+                    pickerState.selectedDateMillis?.let {
+                        onDateSelected(Dates.pickerMillisToLocal(it, time = Dates.localTimeOf(dateMs)))
+                    }
                     showPicker = false
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.action_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { showPicker = false }) { Text("Cancel") }
+                TextButton(onClick = { showPicker = false }) { Text(stringResource(R.string.action_cancel)) }
             }
         ) {
             DatePicker(state = pickerState)

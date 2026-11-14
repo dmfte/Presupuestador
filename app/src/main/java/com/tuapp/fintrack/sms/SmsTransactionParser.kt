@@ -1,5 +1,7 @@
 package com.tuapp.fintrack.sms
 
+import com.tuapp.fintrack.domain.util.Money
+
 data class ParsedSmsTransaction(val amountCents: Long)
 
 object SmsTransactionParser {
@@ -19,11 +21,8 @@ object SmsTransactionParser {
 
         val afterPrefix = notificationText.substring(prefixIndex + amountPrefix.length).trimStart()
         val match = amountRegex.find(afterPrefix) ?: return null
-        val amountStr = match.value.replace(",", "")
-        val amount = amountStr.toDoubleOrNull() ?: return null
-        if (amount <= 0.0) return null
-
-        val amountCents = (amount * 100).toLong()
+        val amountCents = Money.parseToCentsOrNull(match.value) ?: return null
+        if (amountCents <= 0L) return null
         return ParsedSmsTransaction(amountCents = amountCents)
     }
 }

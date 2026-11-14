@@ -21,6 +21,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.res.stringResource
 import com.tuapp.fintrack.R
+import com.tuapp.fintrack.domain.util.Money
 
 @Composable
 fun StartingBalanceDialog(
@@ -34,7 +35,7 @@ fun StartingBalanceDialog(
     onSkip: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    var text by remember { mutableStateOf(if (initialCents == 0L) "" else "%.2f".format(initialCents / 100.0)) }
+    var text by remember { mutableStateOf(if (initialCents == 0L) "" else Money.centsToPlain(initialCents)) }
     var hasError by remember { mutableStateOf(false) }
 
     AlertDialog(
@@ -89,10 +90,5 @@ fun StartingBalanceDialog(
     )
 }
 
-private fun parseCents(raw: String): Long? {
-    val trimmed = raw.trim()
-    if (trimmed.isEmpty()) return 0L
-    val normalized = trimmed.replace(",", ".")
-    val value = normalized.toDoubleOrNull() ?: return null
-    return Math.round(value * 100.0)
-}
+private fun parseCents(raw: String): Long? =
+    if (raw.isBlank()) 0L else Money.parseToCentsOrNull(raw)

@@ -2,12 +2,15 @@ package com.tuapp.fintrack.ui.budgets
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tuapp.fintrack.R
 import com.tuapp.fintrack.data.model.Budget
 import com.tuapp.fintrack.data.model.Category
 import com.tuapp.fintrack.data.model.TransactionType
 import com.tuapp.fintrack.data.repository.FinTrackRepository
 import com.tuapp.fintrack.domain.model.BudgetWithProgress
 import com.tuapp.fintrack.domain.usecase.GetCurrentMonthPeriodUseCase
+import com.tuapp.fintrack.domain.util.Money
+import com.tuapp.fintrack.ui.common.UiMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,7 +23,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class BudgetsUiState(
-    val snackbarMessage: String? = null,
+    val snackbarMessage: UiMessage? = null,
     val pendingRestoreId: Long? = null
 )
 
@@ -71,7 +74,7 @@ class BudgetsViewModel @Inject constructor(
     fun onAddBudget(categoryId: Long, amountCents: Long) {
         viewModelScope.launch {
             if (repository.hasDuplicateBudget(categoryId)) {
-                _uiState.update { it.copy(snackbarMessage = "Budget already exists for this category") }
+                _uiState.update { it.copy(snackbarMessage = UiMessage(R.string.budget_exists)) }
                 return@launch
             }
             repository.addBudget(
@@ -82,8 +85,9 @@ class BudgetsViewModel @Inject constructor(
                 )
             )
             val catName = categories.value.find { it.id == categoryId }?.name ?: ""
-            val formatted = formatCents(amountCents)
-            _uiState.update { it.copy(snackbarMessage = "Budget created: $formatted for $catName") }
+            _uiState.update {
+                it.copy(snackbarMessage = UiMessage(R.string.budget_created, Money.formatUsd(amountCents), catName))
+            }
         }
     }
 
@@ -91,14 +95,14 @@ class BudgetsViewModel @Inject constructor(
         viewModelScope.launch {
             val existing = repository.getBudgetById(id) ?: return@launch
             repository.updateBudget(existing.copy(amountCents = amountCents))
-            _uiState.update { it.copy(snackbarMessage = "Budget updated") }
+            _uiState.update { it.copy(snackbarMessage = UiMessage(R.string.budget_updated)) }
         }
     }
 
     fun onDeleteBudget(id: Long) {
         viewModelScope.launch {
             repository.deactivateBudget(id)
-            _uiState.update { it.copy(snackbarMessage = "Budget deleted", pendingRestoreId = id) }
+            _uiState.update { it.copy(snackbarMessage = UiMessage(R.string.budget_deleted), pendingRestoreId = id) }
         }
     }
 
@@ -111,10 +115,5 @@ class BudgetsViewModel @Inject constructor(
 
     fun onSnackbarConsumed() {
         _uiState.update { it.copy(snackbarMessage = null, pendingRestoreId = null) }
-    }
-
-    private fun formatCents(cents: Long): String {
-        val dollars = cents / 100.0
-        return java.text.NumberFormat.getCurrencyInstance(java.util.Locale.US).format(dollars)
     }
 }

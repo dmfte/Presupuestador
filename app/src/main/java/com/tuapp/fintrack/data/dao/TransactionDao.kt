@@ -8,6 +8,8 @@ import com.tuapp.fintrack.data.model.Transaction
 import com.tuapp.fintrack.data.model.TransactionType
 import kotlinx.coroutines.flow.Flow
 
+data class TypeTotal(val type: TransactionType, val totalCents: Long)
+
 @Dao
 interface TransactionDao {
     @Insert
@@ -28,9 +30,21 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE id = :id AND deletedAt IS NULL")
     suspend fun getById(id: Long): Transaction?
 
-    @Query("SELECT * FROM transactions WHERE type = :type AND deletedAt IS NULL ORDER BY occurredAt DESC")
-    fun getByType(type: TransactionType): Flow<List<Transaction>>
+    @Query(
+        "SELECT type, SUM(amountCents) AS totalCents FROM transactions " +
+            "WHERE deletedAt IS NULL AND occurredAt >= :sinceMs GROUP BY type"
+    )
+    fun totalsByTypeSince(sinceMs: Long): Flow<List<TypeTotal>>
 
-    @Query("SELECT * FROM transactions WHERE occurredAt BETWEEN :startMs AND :endMs AND deletedAt IS NULL ORDER BY occurredAt DESC")
-    fun getByDateRange(startMs: Long, endMs: Long): Flow<List<Transaction>>
+    @Query("SELECT * FROM transactions WHERE deletedAt IS NULL ORDER BY occurredAt DESC, id DESC LIMIT :limit")
+    fun getRecent(limit: Int): Flow<List<Transaction>>
+
+    @Query("SELECT COUNT(*) FROM transactions WHERE deletedAt IS NULL")
+    fun countActive(): Flow<Int>
+
+    @Query("SELECT * FROM transactions WHERE type = :type AND deletedAt IS NULL AND occurredAt >= :sinceMs ORDER BY occurredAt ASC, id ASC")
+    suspend fun getActiveByTypeSince(type: TransactionType, sinceMs: Long): List<Transaction>
+
+    @Query("DELETE FROM transactions")
+    suspend fun deleteAll()
 }

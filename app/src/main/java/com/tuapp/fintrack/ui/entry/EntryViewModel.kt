@@ -1,6 +1,5 @@
 package com.tuapp.fintrack.ui.entry
 
-import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,15 +9,17 @@ import com.tuapp.fintrack.data.model.Transaction
 import com.tuapp.fintrack.data.model.TransactionType
 import com.tuapp.fintrack.data.repository.FinTrackRepository
 import com.tuapp.fintrack.data.settings.SettingsRepository
-import com.tuapp.fintrack.domain.usecase.GetCurrentMonthPeriodUseCase
 import com.tuapp.fintrack.CrashReporter
-import com.tuapp.fintrack.widget.refreshWidgetPeriodSummary
+import com.tuapp.fintrack.domain.util.Money
+import com.tuapp.fintrack.R
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -27,13 +28,15 @@ import javax.inject.Inject
 class EntryViewModel @Inject constructor(
     private val repository: FinTrackRepository,
     private val settings: SettingsRepository,
-    private val getCurrentPeriod: GetCurrentMonthPeriodUseCase,
-    @ApplicationContext private val appContext: Context,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(EntryUiState())
     val uiState: StateFlow<EntryUiState> = _uiState.asStateFlow()
+
+    private var allCategories: List<Category> = emptyList()
+    private var reservePeriodStartMs: Long = 0L
+    private var loadedTransaction: Transaction? = null
 
     private val editingTransactionId: Long? =
         savedStateHandle.get<Long>("transactionId")?.takeIf { it != -1L }
@@ -46,6 +49,7 @@ class EntryViewModel @Inject constructor(
         }
         observeSettings()
         observeCategories()
+        observeReserved()
         if (editingTransactionId != null) loadTransaction(editingTransactionId)
     }
 
@@ -60,8 +64,23 @@ class EntryViewModel @Inject constructor(
     private fun observeCategories() {
         viewModelScope.launch {
             repository.allCategories.collectLatest { cats ->
-                val type = _uiState.value.type
-                _uiState.update { it.copy(availableCategories = cats.forType(type)) }
+                allCategories = cats
+                _uiState.update { it.copy(availableCategories = cats.forType(it.type)) }
+            }
+        }
+    }
+
+    /** Mirrors HomeViewModel: reserved = active RESERVE rows since the carry-forward epoch. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun observeReserved() {
+        viewModelScope.launch {
+            settings.carryForwardEpoch.flatMapLatest { epoch ->
+                repository.totalsByTypeSince(epoch).map { totals ->
+                    epoch to (totals[TransactionType.RESERVE] ?: 0L)
+                }
+            }.collectLatest { (epoch, reserved) ->
+                reservePeriodStartMs = epoch
+                _uiState.update { it.copy(reservedAvailableCents = reserved) }
             }
         }
     }
@@ -69,6 +88,7 @@ class EntryViewModel @Inject constructor(
     private fun loadTransaction(id: Long) {
         viewModelScope.launch {
             val tx = repository.getTransactionById(id) ?: return@launch
+            loadedTransaction = tx
             _uiState.update {
                 it.copy(
                     transactionId = tx.id,
@@ -77,25 +97,26 @@ class EntryViewModel @Inject constructor(
                     amountText = formatCentsToInput(tx.amountCents),
                     selectedCategoryId = tx.categoryId,
                     description = tx.description,
-                    occurredAtMs = tx.occurredAt
+                    occurredAtMs = tx.occurredAt,
+                    availableCategories = allCategories.forType(tx.type)
                 )
             }
         }
     }
 
     fun onTypeChanged(type: TransactionType) {
-        viewModelScope.launch {
-            repository.allCategories.collectLatest { cats ->
-                _uiState.update {
-                    it.copy(
-                        type = type,
-                        selectedCategoryId = null,
-                        availableCategories = cats.forType(type)
-                    )
-                }
-                return@collectLatest
-            }
+        _uiState.update {
+            it.copy(
+                type = type,
+                selectedCategoryId = null,
+                categoryError = null,
+                availableCategories = allCategories.forType(type)
+            )
         }
+    }
+
+    fun onDeductFromReservedChanged(checked: Boolean) {
+        _uiState.update { it.copy(deductFromReserved = checked) }
     }
 
     fun onAmountTextChanged(text: String) {
@@ -122,7 +143,7 @@ class EntryViewModel @Inject constructor(
     }
 
     fun onSavedEventConsumed() {
-        _uiState.update { it.copy(savedEvent = false) }
+        _uiState.update { it.copy(savedEvent = null) }
     }
 
     fun clearSaveError() {
@@ -148,11 +169,11 @@ class EntryViewModel @Inject constructor(
         var hasError = false
 
         if (state.amountCents <= 0L) {
-            _uiState.update { it.copy(amountError = "Amount must be greater than 0") }
+            _uiState.update { it.copy(amountError = R.string.amount_error) }
             hasError = true
         }
         if (state.requireCategory && state.selectedCategoryId == null) {
-            _uiState.update { it.copy(categoryError = "Category is required") }
+            _uiState.update { it.copy(categoryError = R.string.category_required_error) }
             hasError = true
         }
         if (hasError) return
@@ -161,41 +182,47 @@ class EntryViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val now = System.currentTimeMillis()
-                if (state.transactionId != null) {
+                val original = loadedTransaction
+                if (state.transactionId != null && original != null) {
                     repository.updateTransaction(
-                        Transaction(
-                            id = state.transactionId,
+                        original.copy(
                             type = state.type,
                             amountCents = state.amountCents,
                             categoryId = state.selectedCategoryId,
                             description = state.description,
-                            occurredAt = state.occurredAtMs,
-                            createdAt = now
+                            occurredAt = state.occurredAtMs
                         )
                     )
                 } else {
-                    repository.addTransaction(
-                        Transaction(
-                            type = state.type,
-                            amountCents = state.amountCents,
-                            categoryId = state.selectedCategoryId,
-                            description = state.description,
-                            occurredAt = state.occurredAtMs,
-                            createdAt = now
-                        )
+                    val tx = Transaction(
+                        type = state.type,
+                        amountCents = state.amountCents,
+                        categoryId = state.selectedCategoryId,
+                        description = state.description,
+                        occurredAt = state.occurredAtMs,
+                        createdAt = now
                     )
+                    if (state.willDeductFromReserved) {
+                        repository.addExpenseFromReserves(tx, reservePeriodStartMs)
+                    } else {
+                        repository.addTransaction(tx)
+                    }
                 }
                 _uiState.update {
-                    EntryUiState(
-                        requireCategory = state.requireCategory,
-                        availableCategories = state.availableCategories,
-                        savedEvent = true
-                    )
+                    if (state.transactionId != null) {
+                        it.copy(isSaving = false, savedEvent = SavedEvent.UPDATED)
+                    } else {
+                        EntryUiState(
+                            requireCategory = state.requireCategory,
+                            availableCategories = allCategories.forType(TransactionType.EXPENSE),
+                            reservedAvailableCents = it.reservedAvailableCents,
+                            savedEvent = SavedEvent.CREATED
+                        )
+                    }
                 }
-                refreshWidgetPeriodSummary(appContext, repository, getCurrentPeriod)
             } catch (e: Exception) {
                 CrashReporter.log(e, "Failed to save transaction")
-                _uiState.update { it.copy(isSaving = false, saveError = "Failed to save transaction. Please try again.") }
+                _uiState.update { it.copy(isSaving = false, saveError = R.string.entry_save_error) }
             }
         }
     }
@@ -209,11 +236,9 @@ class EntryViewModel @Inject constructor(
     }
 
     companion object {
-        fun parseToCents(input: String): Long {
-            val clean = input.replace(Regex("[^0-9.]"), "")
-            return (clean.toDoubleOrNull() ?: 0.0).let { (it * 100).toLong() }
-        }
+        fun parseToCents(input: String): Long =
+            Money.parseToCentsOrNull(input)?.coerceAtLeast(0L) ?: 0L
 
-        fun formatCentsToInput(cents: Long): String = "%.2f".format(cents / 100.0)
+        fun formatCentsToInput(cents: Long): String = Money.centsToPlain(cents)
     }
 }

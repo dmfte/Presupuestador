@@ -1,5 +1,8 @@
 package com.tuapp.fintrack.widget
 
+import com.tuapp.fintrack.R
+import androidx.glance.semantics.contentDescription
+import androidx.glance.semantics.semantics
 import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
@@ -65,13 +68,14 @@ fun QuickLaunchContent(context: Context) {
                 .defaultWeight()
                 .cornerRadius(22.dp)
                 .background(Color(0xFFFF937E))
+                .semantics { contentDescription = context.getString(R.string.widget_add_expense) }
                 .clickable(actionStartActivity(expenseIntent)),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = "−",
                 style = TextStyle(
-                    color = ColorProvider(Color(0xFF1581BF)),
+                    color = ColorProvider(Color(0xFF1A1A1A)),
                     fontSize = 38.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -86,13 +90,14 @@ fun QuickLaunchContent(context: Context) {
                 .defaultWeight()
                 .cornerRadius(22.dp)
                 .background(Color(0xFFC1E59F))
+                .semantics { contentDescription = context.getString(R.string.widget_add_income) }
                 .clickable(actionStartActivity(incomeIntent)),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = "+",
                 style = TextStyle(
-                    color = ColorProvider(Color(0xFF1581BF)),
+                    color = ColorProvider(Color(0xFF1A1A1A)),
                     fontSize = 38.sp,
                     fontWeight = FontWeight.Bold
                 )

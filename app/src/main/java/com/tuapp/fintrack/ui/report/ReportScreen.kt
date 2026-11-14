@@ -39,7 +39,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -48,12 +47,18 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tuapp.fintrack.R
+import com.tuapp.fintrack.ui.theme.LocalFinColors
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
@@ -76,25 +81,25 @@ fun ReportScreen(
     onNavigateBack: () -> Unit,
     viewModel: ReportViewModel = hiltViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val currency = remember { NumberFormat.getCurrencyInstance(Locale.US) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val exportErrorMsg = state.exportError?.let { stringResource(it) }
 
-    LaunchedEffect(state.exportError) {
-        val err = state.exportError
-        if (err != null) {
-            snackbarHostState.showSnackbar(err, duration = SnackbarDuration.Short)
+    LaunchedEffect(exportErrorMsg) {
+        if (exportErrorMsg != null) {
             viewModel.clearExportError()
+            snackbarHostState.showSnackbar(exportErrorMsg, duration = SnackbarDuration.Short)
         }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Monthly Report") },
+                title = { Text(stringResource(R.string.report_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 },
                 actions = {
@@ -102,7 +107,7 @@ fun ReportScreen(
                         CircularProgressIndicator(modifier = Modifier.size(24.dp).padding(end = 4.dp))
                     } else {
                         IconButton(onClick = { viewModel.exportPdf() }) {
-                            Icon(Icons.Default.PictureAsPdf, contentDescription = "Export PDF")
+                            Icon(Icons.Default.PictureAsPdf, contentDescription = stringResource(R.string.report_export_pdf))
                         }
                     }
                 }
@@ -156,12 +161,12 @@ fun ReportScreen(
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                             )
                             Text(
-                                text = "No data for this month",
+                                text = stringResource(R.string.report_no_data),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = "Add transactions to see your monthly report.",
+                                text = stringResource(R.string.report_no_data_hint),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center
@@ -174,7 +179,7 @@ fun ReportScreen(
             // Pie chart
             if (state.pieSlices.isNotEmpty()) {
                 item {
-                    SectionCard(title = "Spending by Category") {
+                    SectionCard(title = stringResource(R.string.report_spending_by_category)) {
                         PieChartSection(slices = state.pieSlices, currency = currency)
                     }
                 }
@@ -183,8 +188,8 @@ fun ReportScreen(
             // Bar chart: daily spend
             if (state.dailyExpenses.any { it > 0f }) {
                 item {
-                    SectionCard(title = "Daily Expenses") {
-                        DailyBarChart(dailyExpenses = state.dailyExpenses)
+                    SectionCard(title = stringResource(R.string.report_daily_expenses)) {
+                        DailyBarChart(dailyExpenses = state.dailyExpenses, currency = currency)
                     }
                 }
             }
@@ -192,8 +197,8 @@ fun ReportScreen(
             // Line chart: 4-month trend
             if (state.monthlyTrend.size >= 2) {
                 item {
-                    SectionCard(title = "4-Month Expense Trend") {
-                        TrendLineChart(trend = state.monthlyTrend)
+                    SectionCard(title = stringResource(R.string.report_trend)) {
+                        TrendLineChart(trend = state.monthlyTrend, currency = currency)
                     }
                 }
             }
@@ -201,7 +206,7 @@ fun ReportScreen(
             // Top categories
             if (state.topCategories.isNotEmpty()) {
                 item {
-                    SectionCard(title = "Top Spending Categories") {
+                    SectionCard(title = stringResource(R.string.report_top_categories)) {
                         state.topCategories.forEach { tc ->
                             TopCategoryRow(tc = tc, currency = currency)
                         }
@@ -212,7 +217,7 @@ fun ReportScreen(
             // Budget vs actual
             if (state.budgetComparisons.isNotEmpty()) {
                 item {
-                    SectionCard(title = "Budget vs Actual") {
+                    SectionCard(title = stringResource(R.string.report_budget_vs_actual)) {
                         state.budgetComparisons.forEach { bc ->
                             BudgetComparisonRow(bc = bc, currency = currency)
                             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -224,7 +229,7 @@ fun ReportScreen(
             // Suggestions
             if (state.suggestions.isNotEmpty()) {
                 item {
-                    SectionCard(title = "Insights") {
+                    SectionCard(title = stringResource(R.string.report_insights)) {
                         state.suggestions.forEach { suggestion ->
                             Row(
                                 modifier = Modifier
@@ -233,7 +238,7 @@ fun ReportScreen(
                                 horizontalArrangement = Arrangement.Start
                             ) {
                                 Text("•  ", style = MaterialTheme.typography.bodyMedium)
-                                Text(suggestion, style = MaterialTheme.typography.bodyMedium)
+                                Text(suggestion.resolve(), style = MaterialTheme.typography.bodyMedium)
                             }
                         }
                     }
@@ -249,7 +254,7 @@ fun ReportScreen(
                 ) {
                     Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Export PDF")
+                    Text(stringResource(R.string.report_export_pdf))
                 }
                 Spacer(Modifier.height(32.dp))
             }
@@ -261,10 +266,11 @@ fun ReportScreen(
 
 @Composable
 private fun MonthPicker(year: Int, month: Int, onPrev: () -> Unit, onNext: () -> Unit) {
+    val monthFormat = remember { SimpleDateFormat("MMMM yyyy", Locale.getDefault()) }
     val label = if (year > 0) {
-        val cal = Calendar.getInstance().apply { set(Calendar.YEAR, year); set(Calendar.MONTH, month - 1) }
-        SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(cal.time)
-    } else "Loading…"
+        val cal = Calendar.getInstance().apply { clear(); set(year, month - 1, 1) }
+        monthFormat.format(cal.time)
+    } else stringResource(R.string.report_loading)
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -272,13 +278,18 @@ private fun MonthPicker(year: Int, month: Int, onPrev: () -> Unit, onNext: () ->
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = onPrev) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous month")
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.report_prev_month))
         }
-        Text(label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(
+            label,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.semantics { heading() }
+        )
         val now = Calendar.getInstance()
         val isCurrentMonth = year == now.get(Calendar.YEAR) && month == now.get(Calendar.MONTH) + 1
         IconButton(onClick = onNext, enabled = !isCurrentMonth) {
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next month")
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = stringResource(R.string.report_next_month))
         }
     }
 }
@@ -287,44 +298,45 @@ private fun MonthPicker(year: Int, month: Int, onPrev: () -> Unit, onNext: () ->
 
 @Composable
 private fun SummaryCard(state: ReportUiState, currency: NumberFormat) {
+    val fin = LocalFinColors.current
     Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(2.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Income", style = MaterialTheme.typography.labelSmall)
+                Text(stringResource(R.string.summary_income), style = MaterialTheme.typography.labelSmall)
                 Text(
                     currency.format(state.totalIncomeCents / 100.0),
                     style = MaterialTheme.typography.bodyLarge,
-                    color = Color(0xFF2E7D32),
+                    color = fin.income,
                     fontWeight = FontWeight.Bold
                 )
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Expenses", style = MaterialTheme.typography.labelSmall)
+                Text(stringResource(R.string.summary_expenses), style = MaterialTheme.typography.labelSmall)
                 Text(
                     currency.format(state.totalExpenseCents / 100.0),
                     style = MaterialTheme.typography.bodyLarge,
-                    color = Color(0xFFC62828),
+                    color = fin.expense,
                     fontWeight = FontWeight.Bold
                 )
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Reserved", style = MaterialTheme.typography.labelSmall)
+                Text(stringResource(R.string.summary_reserved), style = MaterialTheme.typography.labelSmall)
                 Text(
                     currency.format(state.totalReservedCents / 100.0),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFFF9A825),
+                    color = fin.reserve,
                     fontWeight = FontWeight.Medium
                 )
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Net", style = MaterialTheme.typography.labelSmall)
+                Text(stringResource(R.string.summary_net), style = MaterialTheme.typography.labelSmall)
                 Text(
                     currency.format(state.netCents / 100.0),
                     style = MaterialTheme.typography.bodyLarge,
-                    color = if (state.netCents >= 0) Color(0xFF2E7D32) else Color(0xFFC62828),
+                    color = if (state.netCents >= 0) fin.income else fin.expense,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -344,9 +356,10 @@ private fun PieChartSection(slices: List<PieSlice>, currency: NumberFormat) {
         val pieDescription = slices.joinToString(", ") {
             "${it.label} ${(it.fraction * 100).toInt()}%"
         }
+        val pieA11y = stringResource(R.string.report_pie_desc, pieDescription)
         Canvas(modifier = Modifier
             .size(140.dp)
-            .semantics { contentDescription = "Spending pie chart: $pieDescription" }
+            .semantics { contentDescription = pieA11y }
         ) {
             var startAngle = -90f
             slices.forEach { slice ->
@@ -412,8 +425,13 @@ private fun parseComposeColor(hex: String): Color = try {
 // ── Daily Bar Chart (Vico) ────────────────────────────────────────────────────
 
 @Composable
-private fun DailyBarChart(dailyExpenses: List<Float>) {
+private fun DailyBarChart(dailyExpenses: List<Float>, currency: NumberFormat) {
     val modelProducer = remember { CartesianChartModelProducer() }
+    val description = stringResource(
+        R.string.report_daily_chart_desc,
+        dailyExpenses.count { it > 0f },
+        currency.format((dailyExpenses.maxOrNull() ?: 0f).toDouble())
+    )
 
     LaunchedEffect(dailyExpenses) {
         modelProducer.runTransaction {
@@ -431,14 +449,26 @@ private fun DailyBarChart(dailyExpenses: List<Float>) {
         modifier = Modifier
             .fillMaxWidth()
             .height(200.dp)
+            .clearAndSetSemantics { contentDescription = description }
     )
 }
 
 // ── Trend Line Chart (Vico) ───────────────────────────────────────────────────
 
 @Composable
-private fun TrendLineChart(trend: List<MonthSummary>) {
+private fun TrendLineChart(trend: List<MonthSummary>, currency: NumberFormat) {
     val modelProducer = remember { CartesianChartModelProducer() }
+    val monthFormat = remember { SimpleDateFormat("MMM yyyy", Locale.getDefault()) }
+    val items = trend.reversed().map { ms ->
+        val cal = Calendar.getInstance().apply { clear(); set(ms.year, ms.month - 1, 1) }
+        stringResource(
+            R.string.report_trend_chart_item,
+            monthFormat.format(cal.time),
+            currency.format(ms.totalExpenseCents / 100.0),
+            currency.format(ms.totalIncomeCents / 100.0)
+        )
+    }
+    val description = stringResource(R.string.report_trend_chart_desc, items.joinToString("; "))
     val expenseData = trend.reversed().map { it.totalExpenseCents.toFloat() / 100f }
     val incomeData = trend.reversed().map { it.totalIncomeCents.toFloat() / 100f }
 
@@ -461,6 +491,7 @@ private fun TrendLineChart(trend: List<MonthSummary>) {
         modifier = Modifier
             .fillMaxWidth()
             .height(180.dp)
+            .clearAndSetSemantics { contentDescription = description }
     )
 }
 
@@ -498,7 +529,7 @@ private fun TopCategoryRow(tc: TopCategory, currency: NumberFormat) {
             currency.format(tc.amountCents / 100.0),
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
-            color = Color(0xFFC62828)
+            color = LocalFinColors.current.expense
         )
     }
 }
@@ -507,6 +538,7 @@ private fun TopCategoryRow(tc: TopCategory, currency: NumberFormat) {
 
 @Composable
 private fun BudgetComparisonRow(bc: BudgetComparison, currency: NumberFormat) {
+    val fin = LocalFinColors.current
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -516,7 +548,7 @@ private fun BudgetComparisonRow(bc: BudgetComparison, currency: NumberFormat) {
             Text(
                 "${bc.percentUsed}%",
                 style = MaterialTheme.typography.bodySmall,
-                color = if (bc.percentUsed > 100) Color(0xFFC62828) else MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (bc.percentUsed > 100) fin.expense else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         Spacer(Modifier.height(4.dp))
@@ -524,9 +556,9 @@ private fun BudgetComparisonRow(bc: BudgetComparison, currency: NumberFormat) {
             progress = { (bc.percentUsed / 100f).coerceIn(0f, 1f) },
             modifier = Modifier.fillMaxWidth(),
             color = when {
-                bc.percentUsed > 100 -> Color(0xFFC62828)
-                bc.percentUsed > 80 -> Color(0xFFFF8F00)
-                else -> Color(0xFF2E7D32)
+                bc.percentUsed > 100 -> fin.expense
+                bc.percentUsed > 80 -> fin.warning
+                else -> fin.income
             },
             trackColor = MaterialTheme.colorScheme.surfaceVariant
         )
@@ -536,16 +568,16 @@ private fun BudgetComparisonRow(bc: BudgetComparison, currency: NumberFormat) {
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                "Spent: ${currency.format(bc.spentCents / 100.0)}",
+                stringResource(R.string.report_spent, currency.format(bc.spentCents / 100.0)),
                 style = MaterialTheme.typography.labelSmall
             )
             Text(
-                "Budget: ${currency.format(bc.budgetCents / 100.0)}",
+                stringResource(R.string.report_budget, currency.format(bc.budgetCents / 100.0)),
                 style = MaterialTheme.typography.labelSmall
             )
-            val remColor = if (bc.remainingCents < 0) Color(0xFFC62828) else Color(0xFF2E7D32)
+            val remColor = if (bc.remainingCents < 0) fin.expense else fin.income
             Text(
-                "Left: ${currency.format(bc.remainingCents / 100.0)}",
+                stringResource(R.string.report_left, currency.format(bc.remainingCents / 100.0)),
                 style = MaterialTheme.typography.labelSmall,
                 color = remColor
             )
@@ -559,7 +591,12 @@ private fun BudgetComparisonRow(bc: BudgetComparison, currency: NumberFormat) {
 private fun SectionCard(title: String, content: @Composable () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(1.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text(
+                title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.semantics { heading() }
+            )
             Spacer(Modifier.height(12.dp))
             content()
         }

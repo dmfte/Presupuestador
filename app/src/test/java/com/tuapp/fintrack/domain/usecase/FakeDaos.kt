@@ -2,13 +2,13 @@ package com.tuapp.fintrack.domain.usecase
 
 import com.tuapp.fintrack.data.dao.CategoryDao
 import com.tuapp.fintrack.data.dao.TransactionDao
+import com.tuapp.fintrack.data.dao.TypeTotal
 import com.tuapp.fintrack.data.model.Category
-import com.tuapp.fintrack.data.model.CategoryApplicability
 import com.tuapp.fintrack.data.model.Transaction
 import com.tuapp.fintrack.data.model.TransactionType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 
 class FakeTransactionDao : TransactionDao {
     private val _transactions = mutableListOf<Transaction>()
@@ -27,14 +27,29 @@ class FakeTransactionDao : TransactionDao {
         _flow.value = _transactions.filter { it.deletedAt == null }
         return id
     }
-    override suspend fun update(transaction: Transaction) {}
+    override suspend fun update(transaction: Transaction) {
+        val idx = _transactions.indexOfFirst { it.id == transaction.id }
+        if (idx >= 0) _transactions[idx] = transaction
+        _flow.value = _transactions.filter { it.deletedAt == null }
+    }
     override suspend fun softDelete(id: Long, deletedAt: Long) {}
     override suspend fun restore(id: Long) {}
     override suspend fun getById(id: Long): Transaction? = _transactions.find { it.id == id }
-    override fun getByType(type: TransactionType): Flow<List<Transaction>> =
-        flowOf(_transactions.filter { it.type == type && it.deletedAt == null })
-    override fun getByDateRange(startMs: Long, endMs: Long): Flow<List<Transaction>> =
-        flowOf(_transactions.filter { it.occurredAt in startMs..endMs && it.deletedAt == null })
+    override fun totalsByTypeSince(sinceMs: Long): Flow<List<TypeTotal>> = _flow.map { txs ->
+        txs.filter { it.occurredAt >= sinceMs }.groupBy { it.type }
+            .map { (type, rows) -> TypeTotal(type, rows.sumOf { it.amountCents }) }
+    }
+    override fun getRecent(limit: Int): Flow<List<Transaction>> = _flow.map { txs ->
+        txs.sortedWith(compareByDescending<Transaction> { it.occurredAt }.thenByDescending { it.id }).take(limit)
+    }
+    override fun countActive(): Flow<Int> = _flow.map { it.size }
+    override suspend fun getActiveByTypeSince(type: TransactionType, sinceMs: Long): List<Transaction> =
+        _transactions.filter { it.type == type && it.deletedAt == null && it.occurredAt >= sinceMs }
+            .sortedWith(compareBy({ it.occurredAt }, { it.id }))
+    override suspend fun deleteAll() {
+        _transactions.clear()
+        _flow.value = emptyList()
+    }
 }
 
 class FakeCategoryDao : CategoryDao {
@@ -55,8 +70,10 @@ class FakeCategoryDao : CategoryDao {
         return id
     }
     override suspend fun update(category: Category) {}
-    override fun getByApplicability(types: List<CategoryApplicability>): Flow<List<Category>> =
-        flowOf(_categories.filter { it.applicability in types && it.archivedAt == null })
     override suspend fun getById(id: Long): Category? = _categories.find { it.id == id }
     override suspend fun archive(id: Long, archivedAt: Long) {}
+    override suspend fun deleteAll() {
+        _categories.clear()
+        _flow.value = emptyList()
+    }
 }

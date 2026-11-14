@@ -1,6 +1,8 @@
 package com.tuapp.fintrack.ui.report
 
+import androidx.annotation.StringRes
 import com.tuapp.fintrack.data.model.Category
+import com.tuapp.fintrack.ui.common.UiMessage
 
 data class PieSlice(
     val category: Category?,
@@ -43,9 +45,9 @@ data class ReportUiState(
     val monthlyTrend: List<MonthSummary> = emptyList(),
     val budgetComparisons: List<BudgetComparison> = emptyList(),
     val topCategories: List<TopCategory> = emptyList(),
-    val suggestions: List<String> = emptyList(),
+    val suggestions: List<UiMessage> = emptyList(),
     val isExporting: Boolean = false,
-    val exportError: String? = null
+    @StringRes val exportError: Int? = null
 ) {
     val netCents: Long get() = totalIncomeCents - totalExpenseCents - totalReservedCents
 }

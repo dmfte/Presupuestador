@@ -1,7 +1,6 @@
 package com.tuapp.fintrack.ui.budgets
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,7 +43,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,13 +50,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tuapp.fintrack.R
+import com.tuapp.fintrack.ui.theme.LocalFinColors
 import com.tuapp.fintrack.data.model.Category
 import com.tuapp.fintrack.domain.model.BudgetWithProgress
+import com.tuapp.fintrack.domain.util.Money
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -68,21 +71,23 @@ fun BudgetsScreen(
     onNavigateBack: () -> Unit,
     viewModel: BudgetsViewModel = hiltViewModel()
 ) {
-    val budgets by viewModel.budgets.collectAsState()
-    val categories by viewModel.categories.collectAsState()
-    val uiState by viewModel.uiState.collectAsState()
+    val budgets by viewModel.budgets.collectAsStateWithLifecycle()
+    val categories by viewModel.categories.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val snackbarText = uiState.snackbarMessage?.resolve()
+    val undoLabel = stringResource(R.string.undo)
 
     var showAddDialog by remember { mutableStateOf(false) }
     var editTarget by remember { mutableStateOf<BudgetWithProgress?>(null) }
     var deleteTarget by remember { mutableStateOf<BudgetWithProgress?>(null) }
 
     LaunchedEffect(uiState.snackbarMessage) {
-        val message = uiState.snackbarMessage ?: return@LaunchedEffect
+        val message = snackbarText ?: return@LaunchedEffect
         val pendingId = uiState.pendingRestoreId
         val result = snackbarHostState.showSnackbar(
             message = message,
-            actionLabel = if (pendingId != null) "Undo" else null,
+            actionLabel = if (pendingId != null) undoLabel else null,
             duration = SnackbarDuration.Short
         )
         if (result == SnackbarResult.ActionPerformed && pendingId != null) {
@@ -95,10 +100,10 @@ fun BudgetsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Budgets") },
+                title = { Text(stringResource(R.string.nav_budgets)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 }
             )
@@ -106,7 +111,7 @@ fun BudgetsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Add budget")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.budget_add))
             }
         }
     ) { innerPadding ->
@@ -129,18 +134,18 @@ fun BudgetsScreen(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                     )
                     Text(
-                        text = "No budgets set",
+                        text = stringResource(R.string.budget_empty_title),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "Create a budget to track monthly spending limits for each category.",
+                        text = stringResource(R.string.budget_empty_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
                     Button(onClick = { showAddDialog = true }) {
-                        Text("Create Budget")
+                        Text(stringResource(R.string.budget_create))
                     }
                 }
             }
@@ -190,16 +195,16 @@ fun BudgetsScreen(
     deleteTarget?.let { bwp ->
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
-            title = { Text("Delete Budget?") },
-            text = { Text("This will remove the budget; category will have no limit.") },
+            title = { Text(stringResource(R.string.budget_delete_title)) },
+            text = { Text(stringResource(R.string.budget_delete_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.onDeleteBudget(bwp.budget.id)
                     deleteTarget = null
-                }) { Text("Delete") }
+                }) { Text(stringResource(R.string.action_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { deleteTarget = null }) { Text("Cancel") }
+                TextButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.action_cancel)) }
             }
         )
     }
@@ -211,24 +216,28 @@ private fun BudgetItem(
     onTap: () -> Unit,
     onLongPress: () -> Unit
 ) {
-    val currency = NumberFormat.getCurrencyInstance(Locale.US)
+    val currency = remember { NumberFormat.getCurrencyInstance(Locale.US) }
+    val fin = LocalFinColors.current
     val colorInt = remember(bwp.category.colorHex) {
         try { android.graphics.Color.parseColor(bwp.category.colorHex) }
         catch (e: Exception) { android.graphics.Color.GRAY }
     }
     val progress = (bwp.progressPercent / 100f).coerceIn(0f, 1f)
     val progressColor = when {
-        bwp.progressPercent >= 100 -> Color(0xFFC62828)
-        bwp.progressPercent >= 75 -> Color(0xFFE65100)
-        else -> Color(0xFF2E7D32)
+        bwp.progressPercent >= 100 -> fin.expense
+        bwp.progressPercent >= 75 -> fin.warning
+        else -> fin.income
     }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .pointerInput(Unit) {
-                detectTapGestures(onTap = { onTap() }, onLongPress = { onLongPress() })
-            }
+            .combinedClickable(
+                onClickLabel = stringResource(R.string.action_edit),
+                onLongClickLabel = stringResource(R.string.action_delete),
+                onClick = onTap,
+                onLongClick = onLongPress
+            )
             .padding(vertical = 4.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -250,7 +259,7 @@ private fun BudgetItem(
         }
         Spacer(Modifier.height(2.dp))
         Text(
-            text = "Monthly",
+            text = stringResource(R.string.budget_monthly),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -263,7 +272,7 @@ private fun BudgetItem(
         )
         Spacer(Modifier.height(2.dp))
         Text(
-            text = "${currency.format(bwp.currentPeriodSpendingCents / 100.0)} spent (${bwp.progressPercent}%)",
+            text = stringResource(R.string.budget_spent_progress, currency.format(bwp.currentPeriodSpendingCents / 100.0), bwp.progressPercent),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -279,12 +288,12 @@ private fun AddBudgetDialog(
 ) {
     var selectedCategory by remember { mutableStateOf<Category?>(null) }
     var amountText by remember { mutableStateOf("") }
-    var amountError by remember { mutableStateOf<String?>(null) }
+    var amountError by remember { mutableStateOf<Int?>(null) }
     var catExpanded by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Budget") },
+        title = { Text(stringResource(R.string.budget_add)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 ExposedDropdownMenuBox(
@@ -295,7 +304,7 @@ private fun AddBudgetDialog(
                         value = selectedCategory?.name ?: "",
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Category") },
+                        label = { Text(stringResource(R.string.category_label)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(catExpanded) },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -307,7 +316,7 @@ private fun AddBudgetDialog(
                     ) {
                         if (categories.isEmpty()) {
                             DropdownMenuItem(
-                                text = { Text("No categories available", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                                text = { Text(stringResource(R.string.budget_no_categories), color = MaterialTheme.colorScheme.onSurfaceVariant) },
                                 onClick = {}
                             )
                         } else {
@@ -324,11 +333,11 @@ private fun AddBudgetDialog(
                 OutlinedTextField(
                     value = amountText,
                     onValueChange = { amountText = it; amountError = null },
-                    label = { Text("Monthly Budget (USD)") },
+                    label = { Text(stringResource(R.string.budget_amount_label)) },
                     placeholder = { Text("0.00") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     isError = amountError != null,
-                    supportingText = amountError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+                    supportingText = amountError?.let { { Text(stringResource(it), color = MaterialTheme.colorScheme.error) } },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -337,13 +346,13 @@ private fun AddBudgetDialog(
         confirmButton = {
             TextButton(onClick = {
                 val cents = parseCents(amountText)
-                if (cents <= 0L) { amountError = "Enter a valid amount"; return@TextButton }
+                if (cents <= 0L) { amountError = R.string.budget_invalid_amount; return@TextButton }
                 if (selectedCategory == null) return@TextButton
                 onConfirm(selectedCategory!!.id, cents)
-            }) { Text("Add") }
+            }) { Text(stringResource(R.string.action_add)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         }
     )
 }
@@ -354,30 +363,27 @@ private fun EditBudgetDialog(
     onConfirm: (amountCents: Long) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val initial = remember {
-        val d = current.budget.amountCents / 100.0
-        "%.2f".format(d)
-    }
+    val initial = remember { Money.centsToPlain(current.budget.amountCents) }
     var amountText by remember { mutableStateOf(initial) }
-    var amountError by remember { mutableStateOf<String?>(null) }
+    var amountError by remember { mutableStateOf<Int?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Edit Budget") },
+        title = { Text(stringResource(R.string.budget_edit)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "${current.category.name} · Monthly",
+                    text = stringResource(R.string.budget_category_monthly, current.category.name),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 OutlinedTextField(
                     value = amountText,
                     onValueChange = { amountText = it; amountError = null },
-                    label = { Text("Monthly Budget (USD)") },
+                    label = { Text(stringResource(R.string.budget_amount_label)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     isError = amountError != null,
-                    supportingText = amountError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+                    supportingText = amountError?.let { { Text(stringResource(it), color = MaterialTheme.colorScheme.error) } },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -386,17 +392,14 @@ private fun EditBudgetDialog(
         confirmButton = {
             TextButton(onClick = {
                 val cents = parseCents(amountText)
-                if (cents <= 0L) { amountError = "Enter a valid amount"; return@TextButton }
+                if (cents <= 0L) { amountError = R.string.budget_invalid_amount; return@TextButton }
                 onConfirm(cents)
-            }) { Text("Save") }
+            }) { Text(stringResource(R.string.action_save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         }
     )
 }
 
-private fun parseCents(text: String): Long {
-    val d = text.trim().toDoubleOrNull() ?: return 0L
-    return (d * 100).toLong()
-}
+private fun parseCents(text: String): Long = Money.parseToCentsOrNull(text) ?: 0L

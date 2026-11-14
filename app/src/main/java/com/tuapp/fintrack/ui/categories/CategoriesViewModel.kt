@@ -2,9 +2,12 @@ package com.tuapp.fintrack.ui.categories
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tuapp.fintrack.R
+import com.tuapp.fintrack.data.model.Budget
 import com.tuapp.fintrack.data.model.Category
 import com.tuapp.fintrack.data.model.CategoryApplicability
 import com.tuapp.fintrack.data.repository.FinTrackRepository
+import com.tuapp.fintrack.ui.common.UiMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -16,7 +19,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class CategoriesUiState(
-    val snackbarMessage: String? = null,
+    val snackbarMessage: UiMessage? = null,
     val pendingRestoreId: Long? = null
 )
 
@@ -28,13 +31,17 @@ class CategoriesViewModel @Inject constructor(
     val categories: StateFlow<List<Category>> = repository.allCategories
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    /** Active budgets, so the screen can block archiving a category that still has one. */
+    val activeBudgets: StateFlow<List<Budget>> = repository.allBudgets
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     private val _uiState = MutableStateFlow(CategoriesUiState())
     val uiState: StateFlow<CategoriesUiState> = _uiState.asStateFlow()
 
-    fun onAddCategory(name: String, applicability: CategoryApplicability) {
+    fun onAddCategory(name: String, applicability: CategoryApplicability, colorHex: String? = null) {
         viewModelScope.launch {
             val existingCount = categories.value.size
-            val color = CATEGORY_COLORS[existingCount % CATEGORY_COLORS.size]
+            val color = colorHex ?: CATEGORY_COLORS[existingCount % CATEGORY_COLORS.size]
             repository.addCategory(
                 Category(
                     name = name.trim(),
@@ -43,7 +50,7 @@ class CategoriesViewModel @Inject constructor(
                     createdAt = System.currentTimeMillis()
                 )
             )
-            _uiState.update { it.copy(snackbarMessage = "Category added: ${name.trim()}") }
+            _uiState.update { it.copy(snackbarMessage = UiMessage(R.string.category_added, name.trim())) }
         }
     }
 
@@ -53,14 +60,14 @@ class CategoriesViewModel @Inject constructor(
             repository.updateCategory(
                 existing.copy(name = name.trim(), applicability = applicability, colorHex = colorHex)
             )
-            _uiState.update { it.copy(snackbarMessage = "Category updated") }
+            _uiState.update { it.copy(snackbarMessage = UiMessage(R.string.category_updated)) }
         }
     }
 
     fun onArchiveCategory(id: Long) {
         viewModelScope.launch {
             repository.archiveCategory(id)
-            _uiState.update { it.copy(snackbarMessage = "Category archived", pendingRestoreId = id) }
+            _uiState.update { it.copy(snackbarMessage = UiMessage(R.string.category_archived), pendingRestoreId = id) }
         }
     }
 
@@ -80,7 +87,7 @@ class CategoriesViewModel @Inject constructor(
         }
     }
 
-    fun hasBudgetsForCategory(id: Long, activeBudgets: List<com.tuapp.fintrack.data.model.Budget>): Boolean {
+    fun hasBudgetsForCategory(id: Long, activeBudgets: List<Budget>): Boolean {
         return activeBudgets.any { it.categoryId == id }
     }
 

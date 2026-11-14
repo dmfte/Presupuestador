@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Add
@@ -30,25 +32,26 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.tuapp.fintrack.data.model.TransactionType
-import com.tuapp.fintrack.ui.MainViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tuapp.fintrack.R
+import com.tuapp.fintrack.ui.common.labelRes
+import com.tuapp.fintrack.ui.theme.LocalFinColors
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -61,24 +64,25 @@ fun HomeScreen(
     onViewBudgets: () -> Unit = {},
     onViewReport: () -> Unit = {},
     onViewSettings: () -> Unit = {},
-    viewModel: HomeViewModel = hiltViewModel(),
-    mainViewModel: MainViewModel = hiltViewModel()
+    viewModel: HomeViewModel = hiltViewModel()
 ) {
-    val transactions by mainViewModel.transactions.collectAsState()
-    val periodSummary by viewModel.periodSummary.collectAsState()
-    val startingBalanceCents by viewModel.startingBalanceCents.collectAsState()
-    val availableBalanceCents by viewModel.availableBalanceCents.collectAsState()
-    val currencyFormat = NumberFormat.getCurrencyInstance(Locale.US)
-    val periodDateFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+    val recentTransactions by viewModel.recentTransactions.collectAsStateWithLifecycle()
+    val transactionCount by viewModel.transactionCount.collectAsStateWithLifecycle()
+    val periodSummary by viewModel.periodSummary.collectAsStateWithLifecycle()
+    val startingBalanceCents by viewModel.startingBalanceCents.collectAsStateWithLifecycle()
+    val availableBalanceCents by viewModel.availableBalanceCents.collectAsStateWithLifecycle()
+    val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale.US) }
+    val periodDateFormat = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
+    val fin = LocalFinColors.current
     var showResetDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Presupuestador") },
+                title = { Text(stringResource(R.string.app_name)) },
                 actions = {
                     IconButton(onClick = onViewSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.nav_settings))
                     }
                 }
             )
@@ -87,7 +91,7 @@ fun HomeScreen(
             ExtendedFloatingActionButton(
                 onClick = onAddTransaction,
                 icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text("Add Transaction") }
+                text = { Text(stringResource(R.string.add_transaction)) }
             )
         }
     ) { innerPadding ->
@@ -95,7 +99,9 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp),
+                .verticalScroll(rememberScrollState())
+                // Extra bottom padding keeps the last rows clear of the extended FAB.
+                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 88.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Card(
@@ -109,8 +115,8 @@ fun HomeScreen(
                     if (periodSummary != null) {
                         val summary = periodSummary!!
                         val epoch = summary.period.startDateMs
-                        val title = if (epoch == 0L) "All time"
-                            else "Since ${periodDateFormat.format(Date(epoch))}"
+                        val title = if (epoch == 0L) stringResource(R.string.filter_all_time)
+                            else stringResource(R.string.home_since, periodDateFormat.format(Date(epoch)))
                         Text(
                             text = title,
                             style = MaterialTheme.typography.titleSmall,
@@ -118,7 +124,7 @@ fun HomeScreen(
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "Available",
+                            text = stringResource(R.string.home_available),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -126,7 +132,7 @@ fun HomeScreen(
                             text = currencyFormat.format(availableBalanceCents / 100.0),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
-                            color = if (availableBalanceCents >= 0) Color(0xFF2E7D32) else Color(0xFFC62828)
+                            color = if (availableBalanceCents >= 0) fin.income else fin.expense
                         )
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -134,40 +140,40 @@ fun HomeScreen(
                         ) {
                             Column {
                                 Text(
-                                    text = "Income",
+                                    text = stringResource(R.string.summary_income),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
                                     text = currencyFormat.format(summary.totalIncomeCents / 100.0),
                                     style = MaterialTheme.typography.bodyLarge,
-                                    color = Color(0xFF2E7D32),
+                                    color = fin.income,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    text = "Reserved",
+                                    text = stringResource(R.string.summary_reserved),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
                                     text = currencyFormat.format(summary.totalReservedCents / 100.0),
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = Color(0xFFF9A825),
+                                    color = fin.reserve,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
-                                    text = "Expenses",
+                                    text = stringResource(R.string.summary_expenses),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
                                     text = currencyFormat.format(summary.totalExpensesCents / 100.0),
                                     style = MaterialTheme.typography.bodyLarge,
-                                    color = Color(0xFFC62828),
+                                    color = fin.expense,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
@@ -179,7 +185,7 @@ fun HomeScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
-                                    text = "Starting balance",
+                                    text = stringResource(R.string.starting_balance_title),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -187,7 +193,7 @@ fun HomeScreen(
                                     text = currencyFormat.format(startingBalanceCents / 100.0),
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Medium,
-                                    color = if (startingBalanceCents >= 0) Color(0xFF2E7D32) else Color(0xFFC62828)
+                                    color = if (startingBalanceCents >= 0) fin.income else fin.expense
                                 )
                             }
                         }
@@ -196,16 +202,11 @@ fun HomeScreen(
                             onClick = { showResetDialog = true },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Reset budget period")
+                            Text(stringResource(R.string.home_reset_period))
                         }
                     } else {
                         Text(
-                            text = "Current Month",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = "Loading...",
+                            text = stringResource(R.string.report_loading),
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
@@ -216,9 +217,9 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                TextButton(onClick = onViewCategories) { Text("Categories") }
-                TextButton(onClick = onViewBudgets) { Text("Budgets") }
-                TextButton(onClick = onViewReport) { Text("Report") }
+                TextButton(onClick = onViewCategories) { Text(stringResource(R.string.nav_categories)) }
+                TextButton(onClick = onViewBudgets) { Text(stringResource(R.string.nav_budgets)) }
+                TextButton(onClick = onViewReport) { Text(stringResource(R.string.nav_reports)) }
             }
 
             Row(
@@ -227,17 +228,20 @@ fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Transactions (${transactions.size})",
-                    style = MaterialTheme.typography.titleMedium
+                    text = stringResource(R.string.home_transactions_count, transactionCount),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.semantics { heading() }
                 )
                 TextButton(onClick = onViewTransactions) {
-                    Text("View all")
+                    Text(stringResource(R.string.home_view_all))
                 }
             }
 
-            if (transactions.isEmpty()) {
+            if (recentTransactions.isEmpty()) {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -251,31 +255,27 @@ fun HomeScreen(
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                         )
                         Text(
-                            text = "No transactions yet",
+                            text = stringResource(R.string.home_empty_title),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = "Start by tapping the button below to log one.",
+                            text = stringResource(R.string.home_empty_hint),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(horizontal = 32.dp)
                         )
                         Spacer(Modifier.height(4.dp))
-                        Button(
-                            onClick = onAddTransaction,
-                            modifier = Modifier.semantics { contentDescription = "Add first transaction" }
-                        ) {
+                        Button(onClick = onAddTransaction) {
                             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Add First Transaction")
+                            Text(stringResource(R.string.home_add_first))
                         }
                     }
                 }
             } else {
-                val recent = transactions.take(5)
-                recent.forEach { tx ->
+                recentTransactions.forEach { tx ->
                     val amountText = currencyFormat.format(tx.amountCents / 100.0)
                     val sign = when (tx.type) {
                         TransactionType.INCOME -> "+"
@@ -283,9 +283,9 @@ fun HomeScreen(
                         TransactionType.RESERVE -> "~"
                     }
                     val color = when (tx.type) {
-                        TransactionType.INCOME -> Color(0xFF2E7D32)
-                        TransactionType.EXPENSE -> Color(0xFFC62828)
-                        TransactionType.RESERVE -> Color(0xFFF9A825)
+                        TransactionType.INCOME -> fin.income
+                        TransactionType.EXPENSE -> fin.expense
+                        TransactionType.RESERVE -> fin.reserve
                     }
                     Row(
                         modifier = Modifier
@@ -294,7 +294,7 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = if (tx.description.isNotBlank()) tx.description else tx.type.name.lowercase(),
+                            text = tx.description.ifBlank { stringResource(tx.type.labelRes()) },
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.weight(1f)
                         )
@@ -314,24 +314,21 @@ fun HomeScreen(
         val amountText = currencyFormat.format(availableBalanceCents / 100.0)
         AlertDialog(
             onDismissRequest = { showResetDialog = false },
-            title = { Text("Reset budget period?") },
+            title = { Text(stringResource(R.string.home_reset_title)) },
             text = {
-                Text(
-                    "$amountText will become your new starting balance and a new period begins today. " +
-                        "This cannot be undone."
-                )
+                Text(stringResource(R.string.home_reset_message, amountText))
             },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.resetBudgetPeriod()
                     showResetDialog = false
                 }) {
-                    Text("Reset")
+                    Text(stringResource(R.string.home_reset_confirm))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showResetDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )

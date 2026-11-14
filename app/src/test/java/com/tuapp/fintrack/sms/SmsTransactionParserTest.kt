@@ -152,4 +152,14 @@ class SmsTransactionParserTest {
         assertThat(result).isNotNull()
         assertThat(result!!.amountCents).isEqualTo(3000L)
     }
+
+    @Test
+    fun `amount that truncates through Double is exact`() {
+        val result = SmsTransactionParser.parse(
+            notificationText = "Compra aprobada por $19.99 en Tienda X",
+            identifierText = "Compra aprobada",
+            amountPrefix = "$"
+        )
+        assertThat(result!!.amountCents).isEqualTo(1999L)
+    }
 }

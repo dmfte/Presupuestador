@@ -35,4 +35,7 @@ interface BudgetDao {
 
     @Query("SELECT * FROM budgets WHERE active = 1")
     suspend fun getAllActiveOnce(): List<Budget>
+
+    @Query("DELETE FROM budgets")
+    suspend fun deleteAll()
 }

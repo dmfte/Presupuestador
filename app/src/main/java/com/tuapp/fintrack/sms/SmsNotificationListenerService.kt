@@ -10,11 +10,10 @@ import android.util.Log
 import android.widget.Toast
 import com.tuapp.fintrack.R
 import com.tuapp.fintrack.data.model.Transaction
-import com.tuapp.fintrack.data.model.TransactionType
 import com.tuapp.fintrack.data.repository.FinTrackRepository
 import com.tuapp.fintrack.data.settings.SettingsRepository
-import com.tuapp.fintrack.domain.usecase.GetCurrentMonthPeriodUseCase
-import com.tuapp.fintrack.widget.refreshWidgetPeriodSummary
+import com.tuapp.fintrack.domain.util.Money
+import com.tuapp.fintrack.ui.common.labelRes
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -33,14 +32,23 @@ class SmsNotificationListenerService : NotificationListenerService() {
     interface ListenerEntryPoint {
         fun repository(): FinTrackRepository
         fun settingsRepository(): SettingsRepository
-        fun getCurrentPeriodUseCase(): GetCurrentMonthPeriodUseCase
     }
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
+    /**
+     * Recently processed notifications. Messaging apps re-post the same notification (thread
+     * updates, mark-as-read, reboots); without this each re-post would log a duplicate transaction.
+     */
+    private val recentKeys = object : LinkedHashMap<String, Unit>(32, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Unit>?) = size > MAX_RECENT_KEYS
+    }
+
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val defaultSmsPackage = Telephony.Sms.getDefaultSmsPackage(this) ?: return
         if (sbn.packageName != defaultSmsPackage) return
+        // Group summaries repeat the text of a child notification.
+        if (sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
 
         val entryPoint = EntryPointAccessors.fromApplication(
             applicationContext,
@@ -52,26 +60,23 @@ class SmsNotificationListenerService : NotificationListenerService() {
                 val settings = entryPoint.settingsRepository()
                 if (!settings.smsAutoEnabled.first()) return@launch
 
-                val identifierText = settings.smsIdentifierText.first()
-                val amountPrefix = settings.smsAmountPrefix.first()
-                if (identifierText.isBlank() || amountPrefix.isBlank()) return@launch
+                val rules = settings.smsRules.first()
+                if (rules.none { it.enabled }) return@launch
 
                 val extras = sbn.notification.extras
                 val text = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()
                     ?: extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
                     ?: return@launch
 
-                val parsed = SmsTransactionParser.parse(text, identifierText, amountPrefix)
-                    ?: return@launch
+                val dedupeKey = "${sbn.key}|${sbn.notification.`when`}|${text.hashCode()}"
+                val firstSeen = synchronized(recentKeys) { recentKeys.put(dedupeKey, Unit) == null }
+                if (!firstSeen) return@launch
 
-                val typeStr = settings.smsTransactionType.first()
-                val type = when (typeStr) {
-                    "INCOME" -> TransactionType.INCOME
-                    "RESERVE" -> TransactionType.RESERVE
-                    else -> TransactionType.EXPENSE
-                }
-                val categoryId = settings.smsDefaultCategoryId.first()
-                val description = settings.smsDescriptionTemplate.first().ifBlank { "SMS auto-transaction" }
+                val (rule, parsed) = SmsRuleMatcher.firstMatch(text, rules) ?: return@launch
+
+                val type = rule.type
+                val categoryId = rule.categoryId
+                val description = rule.descriptionTemplate.ifBlank { getString(R.string.sms_default_description) }
 
                 val now = System.currentTimeMillis()
                 val repository = entryPoint.repository()
@@ -87,15 +92,8 @@ class SmsNotificationListenerService : NotificationListenerService() {
                     )
                 )
 
-                val getCurrentPeriod = entryPoint.getCurrentPeriodUseCase()
-                refreshWidgetPeriodSummary(applicationContext, repository, getCurrentPeriod)
-
-                val amountStr = "$%.2f".format(parsed.amountCents / 100.0)
-                val typeName = when (type) {
-                    TransactionType.EXPENSE -> "expense"
-                    TransactionType.INCOME -> "income"
-                    TransactionType.RESERVE -> "reserve"
-                }
+                val amountStr = Money.formatUsd(parsed.amountCents)
+                val typeName = getString(type.labelRes())
                 Handler(Looper.getMainLooper()).post {
                     Toast.makeText(
                         applicationContext,
@@ -104,7 +102,7 @@ class SmsNotificationListenerService : NotificationListenerService() {
                     ).show()
                 }
 
-                Log.d(TAG, "Auto-created transaction: ${parsed.amountCents} cents ($type)")
+                Log.d(TAG, "Auto-created transaction: ${parsed.amountCents} cents ($type) via rule ${rule.id}")
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing SMS notification", e)
             }
@@ -118,5 +116,6 @@ class SmsNotificationListenerService : NotificationListenerService() {
 
     companion object {
         private const val TAG = "SmsNotificationListener"
+        private const val MAX_RECENT_KEYS = 50
     }
 }

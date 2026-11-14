@@ -21,7 +21,9 @@ object DatabaseModule {
     @Provides
     fun provideDatabase(@ApplicationContext context: Context): FinTrackDatabase =
         Room.databaseBuilder(context, FinTrackDatabase::class.java, "fintrack.db")
-            .fallbackToDestructiveMigration(dropAllTables = true)
+            // Only the pre-release v1 schema may be dropped. Every later bump needs a real Migration:
+            // exports are not backups (no restore path), so a destructive fallback would lose user data.
+            .fallbackToDestructiveMigrationFrom(dropAllTables = true, 1)
             .build()
 
     @Singleton

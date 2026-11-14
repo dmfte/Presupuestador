@@ -5,7 +5,11 @@ import com.tuapp.fintrack.data.model.Category
 import com.tuapp.fintrack.data.model.CategoryApplicability
 import com.tuapp.fintrack.data.model.Transaction
 import com.tuapp.fintrack.data.model.TransactionType
+import com.tuapp.fintrack.data.settings.SettingsRepository
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 import org.junit.Before
 import org.junit.Test
 
@@ -21,7 +25,10 @@ class ExportTransactionsUseCaseTest {
     fun setUp() {
         transactionDao = FakeTransactionDao()
         categoryDao = FakeCategoryDao()
-        useCase = ExportTransactionsUseCase(transactionDao, categoryDao)
+        val settings: SettingsRepository = mock()
+        whenever(settings.startingBalanceCents).thenReturn(flowOf(0L))
+        whenever(settings.startingBalanceSetAt).thenReturn(flowOf(0L))
+        useCase = ExportTransactionsUseCase(transactionDao, categoryDao, settings)
     }
 
     @Test

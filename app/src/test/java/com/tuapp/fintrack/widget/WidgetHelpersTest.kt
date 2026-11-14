@@ -23,17 +23,6 @@ class WidgetHelpersTest {
     }
 
     @Test
-    fun `WidgetPeriodSummary net is income minus expense`() {
-        val summary = WidgetPeriodSummary(
-            periodStartMs = 1000L,
-            periodEndMs = 2000L,
-            incomeCents = 5000L,
-            expenseCents = 3000L
-        )
-        assertThat(summary.incomeCents - summary.expenseCents).isEqualTo(2000L)
-    }
-
-    @Test
     fun `formatDateShort formats epoch`() {
         val formatted = formatDateShort(0L)
         assertThat(formatted).isNotEmpty()

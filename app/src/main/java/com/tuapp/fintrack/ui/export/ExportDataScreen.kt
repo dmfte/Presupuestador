@@ -1,5 +1,10 @@
 package com.tuapp.fintrack.ui.export
 
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tuapp.fintrack.R
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,14 +29,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import java.text.SimpleDateFormat
+import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
 
@@ -41,18 +45,21 @@ fun ExportDataScreen(
     onNavigateBack: () -> Unit,
     viewModel: ExportDataViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val lastCsvExportTime by viewModel.lastCsvExportTime.collectAsState()
-    val lastJsonExportTime by viewModel.lastJsonExportTime.collectAsState()
-    val dateTimeFmt = remember { SimpleDateFormat("MMM d, yyyy 'at' h:mm a", Locale.US) }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val lastCsvExportTime by viewModel.lastCsvExportTime.collectAsStateWithLifecycle()
+    val lastJsonExportTime by viewModel.lastJsonExportTime.collectAsStateWithLifecycle()
+    val dateTimeFmt = remember {
+        DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, Locale.getDefault())
+    }
+    val never = stringResource(R.string.export_never)
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Export your data") },
+                title = { Text(stringResource(R.string.export_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 }
             )
@@ -66,7 +73,7 @@ fun ExportDataScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = "Exports include all transactions across all years. These are for analysis only; there is no restore path.",
+                text = stringResource(R.string.export_intro),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -76,9 +83,13 @@ fun ExportDataScreen(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("CSV Format", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "Spreadsheet-compatible. Opens in Excel or Google Sheets.",
+                        stringResource(R.string.export_csv_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.semantics { heading() }
+                    )
+                    Text(
+                        stringResource(R.string.export_csv_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -95,10 +106,10 @@ fun ExportDataScreen(
                             )
                             Spacer(Modifier.width(8.dp))
                         }
-                        Text("Export as CSV")
+                        Text(stringResource(R.string.export_csv_button))
                     }
                     Text(
-                        text = "Last exported: ${lastCsvExportTime?.let { dateTimeFmt.format(Date(it)) } ?: "Never"}",
+                        text = stringResource(R.string.export_last, lastCsvExportTime?.let { dateTimeFmt.format(Date(it)) } ?: never),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -110,9 +121,13 @@ fun ExportDataScreen(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("JSON Format", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "Developer-friendly. Year-grouped with totals per year.",
+                        stringResource(R.string.export_json_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.semantics { heading() }
+                    )
+                    Text(
+                        stringResource(R.string.export_json_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -129,17 +144,17 @@ fun ExportDataScreen(
                             )
                             Spacer(Modifier.width(8.dp))
                         }
-                        Text("Export as JSON")
+                        Text(stringResource(R.string.export_json_button))
                     }
                     Text(
-                        text = "Last exported: ${lastJsonExportTime?.let { dateTimeFmt.format(Date(it)) } ?: "Never"}",
+                        text = stringResource(R.string.export_last, lastJsonExportTime?.let { dateTimeFmt.format(Date(it)) } ?: never),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            if (uiState.error != null) {
+            uiState.error?.let { errorRes ->
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer
@@ -151,13 +166,13 @@ fun ExportDataScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = uiState.error!!,
+                            text = stringResource(errorRes),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onErrorContainer,
                             modifier = Modifier.weight(1f)
                         )
                         TextButton(onClick = viewModel::clearError) {
-                            Text("Dismiss")
+                            Text(stringResource(R.string.action_dismiss))
                         }
                     }
                 }

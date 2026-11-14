@@ -1,8 +1,27 @@
 package com.tuapp.fintrack.ui.settings
 
+import com.tuapp.fintrack.domain.util.Dates
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.selection.toggleable
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,21 +34,14 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -37,7 +49,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,20 +73,16 @@ import java.util.Locale
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onExportData: () -> Unit,
+    onSmsRules: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
-    val requireCategory by viewModel.requireCategory.collectAsState()
-    val startingBalanceCents by viewModel.startingBalanceCents.collectAsState()
-    val startingBalanceSetAt by viewModel.startingBalanceSetAt.collectAsState()
-    val periodStartMs by viewModel.periodStartMs.collectAsState()
-    val smsEnabled by viewModel.smsAutoEnabled.collectAsState()
-    val smsIdentifier by viewModel.smsIdentifierText.collectAsState()
-    val smsAmountPrefix by viewModel.smsAmountPrefix.collectAsState()
-    val smsType by viewModel.smsTransactionType.collectAsState()
-    val smsCategoryId by viewModel.smsDefaultCategoryId.collectAsState()
-    val smsDescription by viewModel.smsDescriptionTemplate.collectAsState()
-    val hasNotificationAccess by viewModel.hasNotificationAccess.collectAsState()
-    val categories by viewModel.categories.collectAsState()
+    val requireCategory by viewModel.requireCategory.collectAsStateWithLifecycle()
+    val startingBalanceCents by viewModel.startingBalanceCents.collectAsStateWithLifecycle()
+    val startingBalanceSetAt by viewModel.startingBalanceSetAt.collectAsStateWithLifecycle()
+    val periodStartMs by viewModel.periodStartMs.collectAsStateWithLifecycle()
+    val smsEnabled by viewModel.smsAutoEnabled.collectAsStateWithLifecycle()
+    val smsRules by viewModel.smsRules.collectAsStateWithLifecycle()
+    val hasNotificationAccess by viewModel.hasNotificationAccess.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -86,9 +93,10 @@ fun SettingsScreen(
         }
     }
 
-    var showIdentifierDialog by remember { mutableStateOf(false) }
-    var showAmountPrefixDialog by remember { mutableStateOf(false) }
-    var showDescriptionDialog by remember { mutableStateOf(false) }
+    var showResetDialog by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val dataDeletedMessage = stringResource(R.string.reset_done)
     var showNotificationAccessDialog by remember { mutableStateOf(false) }
     var showStartingBalanceDialog by remember { mutableStateOf(false) }
     var showPeriodDatePickerDialog by remember { mutableStateOf(false) }
@@ -103,11 +111,12 @@ fun SettingsScreen(
                 title = { Text(stringResource(R.string.nav_settings)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -115,17 +124,19 @@ fun SettingsScreen(
         ) {
             item {
                 Text(
-                    text = "Budget period",
+                    text = stringResource(R.string.settings_budget_period),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp)
+                    modifier = Modifier
+                        .padding(start = 16.dp, top = 16.dp, bottom = 8.dp)
+                        .semantics { heading() }
                 )
             }
             item {
-                val periodText = if (periodStartMs == 0L) "All time"
-                    else "Started ${periodDateFormat.format(Date(periodStartMs))}"
+                val periodText = if (periodStartMs == 0L) stringResource(R.string.filter_all_time)
+                    else stringResource(R.string.settings_period_started, periodDateFormat.format(Date(periodStartMs)))
                 ListItem(
-                    headlineContent = { Text("Period start date") },
+                    headlineContent = { Text(stringResource(R.string.settings_period_start)) },
                     supportingContent = { Text(periodText) },
                     trailingContent = {
                         Icon(
@@ -163,22 +174,25 @@ fun SettingsScreen(
             }
             item {
                 ListItem(
-                    headlineContent = { Text("Require category") },
-                    supportingContent = { Text("All transactions must have a category") },
+                    headlineContent = { Text(stringResource(R.string.settings_require_category)) },
+                    supportingContent = { Text(stringResource(R.string.settings_require_category_desc)) },
                     trailingContent = {
-                        Switch(
-                            checked = requireCategory,
-                            onCheckedChange = viewModel::setRequireCategory
-                        )
+                        Switch(checked = requireCategory, onCheckedChange = null)
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .toggleable(
+                            value = requireCategory,
+                            role = Role.Switch,
+                            onValueChange = viewModel::setRequireCategory
+                        )
                 )
                 HorizontalDivider()
             }
             item {
                 ListItem(
-                    headlineContent = { Text("Export data") },
-                    supportingContent = { Text("Export transactions as CSV or JSON") },
+                    headlineContent = { Text(stringResource(R.string.settings_export_data)) },
+                    supportingContent = { Text(stringResource(R.string.settings_export_data_desc)) },
                     trailingContent = {
                         Icon(
                             Icons.AutoMirrored.Filled.KeyboardArrowRight,
@@ -198,7 +212,9 @@ fun SettingsScreen(
                     text = stringResource(R.string.sms_section_title),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 16.dp, top = 24.dp, bottom = 8.dp)
+                    modifier = Modifier
+                        .padding(start = 16.dp, top = 24.dp, bottom = 8.dp)
+                        .semantics { heading() }
                 )
             }
             item {
@@ -206,125 +222,71 @@ fun SettingsScreen(
                     headlineContent = { Text(stringResource(R.string.sms_enabled_title)) },
                     supportingContent = { Text(stringResource(R.string.sms_enabled_subtitle)) },
                     trailingContent = {
-                        Switch(
-                            checked = smsEnabled,
-                            onCheckedChange = { enabled ->
-                                if (enabled && !hasNotificationAccess) {
-                                    showNotificationAccessDialog = true
-                                } else {
-                                    viewModel.setSmsAutoEnabled(enabled)
-                                }
-                            }
-                        )
+                        Switch(checked = smsEnabled, onCheckedChange = null)
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .toggleable(value = smsEnabled, role = Role.Switch) { enabled ->
+                            if (enabled && !hasNotificationAccess) {
+                                showNotificationAccessDialog = true
+                            } else {
+                                viewModel.setSmsAutoEnabled(enabled)
+                            }
+                        }
                 )
                 HorizontalDivider()
             }
-            if (smsEnabled) {
-                item {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.sms_identifier_title)) },
-                        supportingContent = {
-                            Text(smsIdentifier.ifBlank { stringResource(R.string.sms_identifier_subtitle) })
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showIdentifierDialog = true }
-                    )
-                    HorizontalDivider()
-                }
-                item {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.sms_amount_prefix_title)) },
-                        supportingContent = {
-                            Text(smsAmountPrefix.ifBlank { stringResource(R.string.sms_amount_prefix_subtitle) })
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showAmountPrefixDialog = true }
-                    )
-                    HorizontalDivider()
-                }
-                item {
-                    val typeOptions = listOf("EXPENSE" to stringResource(R.string.sms_type_expense), "RESERVE" to stringResource(R.string.sms_type_reserve), "INCOME" to stringResource(R.string.sms_type_income))
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.sms_type_title)) },
-                        supportingContent = {
-                            SingleChoiceSegmentedButtonRow(modifier = Modifier.padding(top = 8.dp)) {
-                                typeOptions.forEachIndexed { idx, (value, label) ->
-                                    SegmentedButton(
-                                        selected = smsType == value,
-                                        onClick = { viewModel.setSmsTransactionType(value) },
-                                        shape = SegmentedButtonDefaults.itemShape(idx, typeOptions.size),
-                                        label = { Text(label) }
-                                    )
-                                }
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    HorizontalDivider()
-                }
-                item {
-                    val selectedCategory = categories.find { it.id == smsCategoryId }
-                    var expanded by remember { mutableStateOf(false) }
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.sms_category_title)) },
-                        supportingContent = {
-                            ExposedDropdownMenuBox(
-                                expanded = expanded,
-                                onExpandedChange = { expanded = it }
-                            ) {
-                                OutlinedTextField(
-                                    value = selectedCategory?.name ?: stringResource(R.string.sms_category_none),
-                                    onValueChange = {},
-                                    readOnly = true,
-                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-                                    modifier = Modifier
-                                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                                        .fillMaxWidth()
-                                        .padding(top = 8.dp)
-                                )
-                                ExposedDropdownMenu(
-                                    expanded = expanded,
-                                    onDismissRequest = { expanded = false }
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.sms_category_none)) },
-                                        onClick = {
-                                            viewModel.setSmsDefaultCategoryId(null)
-                                            expanded = false
-                                        }
-                                    )
-                                    categories.forEach { category ->
-                                        DropdownMenuItem(
-                                            text = { Text(category.name) },
-                                            onClick = {
-                                                viewModel.setSmsDefaultCategoryId(category.id)
-                                                expanded = false
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    HorizontalDivider()
-                }
-                item {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.sms_description_title)) },
-                        supportingContent = {
-                            Text(smsDescription.ifBlank { stringResource(R.string.sms_description_subtitle) })
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showDescriptionDialog = true }
-                    )
-                    HorizontalDivider()
-                }
+            item {
+                val active = smsRules.count { it.enabled }
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.sms_rules_title)) },
+                    supportingContent = {
+                        Text(
+                            if (smsRules.isEmpty()) stringResource(R.string.sms_rules_none_configured)
+                            else stringResource(R.string.sms_rules_summary, smsRules.size, active)
+                        )
+                    },
+                    trailingContent = {
+                        Icon(
+                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onSmsRules)
+                )
+                HorizontalDivider()
+            }
+
+            // Data / reset section
+            item {
+                Text(
+                    text = stringResource(R.string.reset_section_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .padding(start = 16.dp, top = 24.dp, bottom = 8.dp)
+                        .semantics { heading() }
+                )
+            }
+            item {
+                ListItem(
+                    headlineContent = {
+                        Text(stringResource(R.string.reset_title), color = MaterialTheme.colorScheme.error)
+                    },
+                    supportingContent = { Text(stringResource(R.string.reset_subtitle)) },
+                    leadingContent = {
+                        Icon(
+                            Icons.Filled.DeleteForever,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showResetDialog = true }
+                )
             }
         }
     }
@@ -344,56 +306,49 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showNotificationAccessDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )
     }
 
-    if (showIdentifierDialog) {
-        TextInputDialog(
-            title = stringResource(R.string.sms_identifier_title),
-            currentValue = smsIdentifier,
-            onConfirm = { viewModel.setSmsIdentifierText(it) },
-            onDismiss = { showIdentifierDialog = false }
-        )
-    }
-
-    if (showAmountPrefixDialog) {
-        TextInputDialog(
-            title = stringResource(R.string.sms_amount_prefix_title),
-            currentValue = smsAmountPrefix,
-            onConfirm = { viewModel.setSmsAmountPrefix(it) },
-            onDismiss = { showAmountPrefixDialog = false }
-        )
-    }
-
-    if (showDescriptionDialog) {
-        TextInputDialog(
-            title = stringResource(R.string.sms_description_title),
-            currentValue = smsDescription,
-            onConfirm = { viewModel.setSmsDescriptionTemplate(it) },
-            onDismiss = { showDescriptionDialog = false }
+    if (showResetDialog) {
+        ResetDataDialog(
+            onDismiss = { showResetDialog = false },
+            onExportFirst = {
+                showResetDialog = false
+                onExportData()
+            },
+            onConfirm = { everything ->
+                showResetDialog = false
+                viewModel.deleteData(everything) {
+                    scope.launch { snackbarHostState.showSnackbar(dataDeletedMessage) }
+                }
+            }
         )
     }
 
     if (showPeriodDatePickerDialog) {
         val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = if (periodStartMs > 0L) periodStartMs else System.currentTimeMillis()
+            initialSelectedDateMillis = Dates.localMillisToPickerMillis(
+                if (periodStartMs > 0L) periodStartMs else System.currentTimeMillis()
+            )
         )
         DatePickerDialog(
             onDismissRequest = { showPeriodDatePickerDialog = false },
             confirmButton = {
                 TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { viewModel.setPeriodStartDate(it) }
+                    datePickerState.selectedDateMillis?.let {
+                        viewModel.setPeriodStartDate(Dates.pickerMillisToLocalStartOfDay(it))
+                    }
                     showPeriodDatePickerDialog = false
                 }) {
-                    Text("OK")
+                    Text(stringResource(R.string.action_ok))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showPeriodDatePickerDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         ) {
@@ -420,37 +375,90 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun TextInputDialog(
-    title: String,
-    currentValue: String,
-    onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit
+private fun ResetDataDialog(
+    onDismiss: () -> Unit,
+    onExportFirst: () -> Unit,
+    onConfirm: (everything: Boolean) -> Unit
 ) {
-    var text by remember { mutableStateOf(currentValue) }
+    var everything by remember { mutableStateOf(false) }
+    var typed by remember { mutableStateOf("") }
+    val confirmWord = stringResource(R.string.reset_confirm_word)
+    val confirmed = typed.trim().equals(confirmWord, ignoreCase = true)
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
+        icon = { Icon(Icons.Filled.DeleteForever, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+        title = { Text(stringResource(R.string.reset_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            ) {
+                ResetOption(
+                    selected = !everything,
+                    title = stringResource(R.string.reset_option_transactions),
+                    description = stringResource(R.string.reset_option_transactions_desc),
+                    onClick = { everything = false }
+                )
+                ResetOption(
+                    selected = everything,
+                    title = stringResource(R.string.reset_option_everything),
+                    description = stringResource(R.string.reset_option_everything_desc),
+                    onClick = { everything = true }
+                )
+                Text(
+                    stringResource(R.string.reset_warning),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
                 OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
+                    value = typed,
+                    onValueChange = { typed = it },
+                    label = { Text(stringResource(R.string.reset_confirm_label, confirmWord)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+                TextButton(onClick = onExportFirst, contentPadding = PaddingValues(0.dp)) {
+                    Text(stringResource(R.string.reset_export_first))
+                }
             }
         },
         confirmButton = {
-            TextButton(onClick = {
-                onConfirm(text)
-                onDismiss()
-            }) {
-                Text("OK")
+            TextButton(
+                onClick = { onConfirm(everything) },
+                enabled = confirmed,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+            ) {
+                Text(stringResource(R.string.action_delete))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         }
     )
+}
+
+@Composable
+private fun ResetOption(
+    selected: Boolean,
+    title: String,
+    description: String,
+    onClick: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.Top,
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+    ) {
+        RadioButton(selected = selected, onClick = null, modifier = Modifier.padding(top = 2.dp))
+        Column(modifier = Modifier.padding(start = 8.dp)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
 }

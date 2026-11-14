@@ -1,6 +1,7 @@
 package com.tuapp.fintrack.ui.report
 
 import com.google.common.truth.Truth.assertThat
+import com.tuapp.fintrack.R
 import com.tuapp.fintrack.data.model.Category
 import com.tuapp.fintrack.data.model.CategoryApplicability
 import org.junit.Test
@@ -55,7 +56,7 @@ class SuggestionsEngineTest {
         )
         val state = baseState(expenseCents = 12_500L, trend = trend)
         val suggestions = SuggestionsEngine.generate(state)
-        assertThat(suggestions.any { it.contains("higher") }).isTrue()
+        assertThat(suggestions.any { it.id == R.string.suggest_spending_up }).isTrue()
     }
 
     @Test
@@ -68,7 +69,7 @@ class SuggestionsEngineTest {
         )
         val state = baseState(expenseCents = 7_500L, trend = trend)
         val suggestions = SuggestionsEngine.generate(state)
-        assertThat(suggestions.any { it.contains("lower") }).isTrue()
+        assertThat(suggestions.any { it.id == R.string.suggest_spending_down }).isTrue()
     }
 
     @Test
@@ -79,7 +80,7 @@ class SuggestionsEngineTest {
             budgets = listOf(makeBudget(cat, 3_000L, 5_000L))
         )
         val suggestions = SuggestionsEngine.generate(state)
-        assertThat(suggestions.any { it.contains("Over budget") }).isTrue()
+        assertThat(suggestions.any { it.id == R.string.suggest_over_budget }).isTrue()
     }
 
     @Test
@@ -90,7 +91,7 @@ class SuggestionsEngineTest {
             budgets = listOf(makeBudget(cat, 5_000L, 4_500L))
         )
         val suggestions = SuggestionsEngine.generate(state)
-        assertThat(suggestions.any { it.contains("Approaching") }).isTrue()
+        assertThat(suggestions.any { it.id == R.string.suggest_near_budget }).isTrue()
     }
 
     @Test
@@ -101,21 +102,21 @@ class SuggestionsEngineTest {
             topCats = listOf(makeTopCategory(cat, "Rent", 4_500L, 45))
         )
         val suggestions = SuggestionsEngine.generate(state)
-        assertThat(suggestions.any { it.contains("Rent") && it.contains("45%") }).isTrue()
+        assertThat(suggestions.any { it.id == R.string.suggest_top_category && it.args.take(2) == listOf("Rent", 45) }).isTrue()
     }
 
     @Test
     fun `no income rule fires when income is zero and there are expenses`() {
         val state = baseState(incomeCents = 0L, expenseCents = 5_000L)
         val suggestions = SuggestionsEngine.generate(state)
-        assertThat(suggestions.any { it.contains("No income") }).isTrue()
+        assertThat(suggestions.any { it.id == R.string.suggest_no_income }).isTrue()
     }
 
     @Test
     fun `positive net praise fires when net is positive`() {
         val state = baseState(incomeCents = 10_000L, expenseCents = 7_000L)
         val suggestions = SuggestionsEngine.generate(state)
-        assertThat(suggestions.any { it.contains("saved") }).isTrue()
+        assertThat(suggestions.any { it.id == R.string.suggest_saved }).isTrue()
     }
 
     @Test

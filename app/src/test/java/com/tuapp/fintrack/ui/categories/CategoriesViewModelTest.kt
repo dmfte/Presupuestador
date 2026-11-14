@@ -1,6 +1,8 @@
 package com.tuapp.fintrack.ui.categories
 
 import com.google.common.truth.Truth.assertThat
+import com.tuapp.fintrack.R
+import com.tuapp.fintrack.ui.common.UiMessage
 import com.tuapp.fintrack.data.model.Budget
 import com.tuapp.fintrack.data.model.Category
 import com.tuapp.fintrack.data.model.CategoryApplicability
@@ -32,6 +34,7 @@ class CategoriesViewModelTest {
         Dispatchers.setMain(testDispatcher)
         repository = mock()
         whenever(repository.allCategories).thenReturn(categoriesFlow)
+        whenever(repository.allBudgets).thenReturn(MutableStateFlow(emptyList()))
     }
 
     @After
@@ -50,7 +53,7 @@ class CategoriesViewModelTest {
         vm.onAddCategory("Food", CategoryApplicability.EXPENSE)
         testDispatcher.scheduler.advanceUntilIdle()
 
-        assertThat(vm.uiState.value.snackbarMessage).contains("Food")
+        assertThat(vm.uiState.value.snackbarMessage).isEqualTo(UiMessage(R.string.category_added, "Food"))
     }
 
     @Test
@@ -68,7 +71,7 @@ class CategoriesViewModelTest {
         vm.onEditCategory(1L, "New", CategoryApplicability.INCOME, "#2196F3")
         testDispatcher.scheduler.advanceUntilIdle()
 
-        assertThat(vm.uiState.value.snackbarMessage).isEqualTo("Category updated")
+        assertThat(vm.uiState.value.snackbarMessage?.id).isEqualTo(R.string.category_updated)
     }
 
     @Test
@@ -80,7 +83,7 @@ class CategoriesViewModelTest {
         vm.onArchiveCategory(5L)
         testDispatcher.scheduler.advanceUntilIdle()
 
-        assertThat(vm.uiState.value.snackbarMessage).contains("archived")
+        assertThat(vm.uiState.value.snackbarMessage?.id).isEqualTo(R.string.category_archived)
         assertThat(vm.uiState.value.pendingRestoreId).isEqualTo(5L)
     }
 
